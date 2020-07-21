@@ -19,14 +19,14 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         required=allauth_settings.USERNAME_REQUIRED
     )
     password = serializers.CharField(write_only=True)
-    confirmpw = serializers.CharField(write_only=True)
+    # confirmpw = serializers.CharField(write_only=True)
     user_type = serializers.CharField(write_only=True)
     name = serializers.CharField(write_only=True)
     phone_number = serializers.CharField(write_only=True)
 
     class Meta:
         model = CustomUser
-        fields = ['username', 'password', 'confirmpw',
+        fields = ['username', 'password',
                   'user_type', 'name', 'phone_number']
 
     def create(self, validated_data):
@@ -79,9 +79,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return get_adapter().clean_password(password)
 
     def validate(self, data):
-        if data['password'] != data['confirmpw']:
-            raise serializers.ValidationError(
-                _("The two password fields didn't match."))
+        # if data['password'] != data['confirmpw']:
+        #     raise serializers.ValidationError(
+        #         _("The two password fields didn't match."))
         # 아래 코드는 user_type이 a,b,A,B 중 하나가 아닐 경우 error raise하도록 하는 것
         # customized code
         if data['user_type'] not in ['A', 'B', 'a', 'b']:
