@@ -5,6 +5,7 @@
 django 시작할 때
 ```bash
 (djangoEnv) ~/main$ python manage.py runserver
+
 ```
 
 
