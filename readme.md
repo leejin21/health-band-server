@@ -2,7 +2,9 @@
 
 처음 시작할 때 ~/main 에서 `workon djangoEnv`로 가상환경 접속하기
 
-django 시작할 때
+서버 시작할 때, 이 글
+(https://velog.io/@tera_geniel/nohup-%EB%AA%85%EB%A0%B9%EC%96%B4-putty%EC%97%90%EC%84%9C-%EC%93%B0%EA%B8%B0)
+ 참고하면서 runserver 명령어 돌리기
 ```bash
 (djangoEnv) ~/main$ python manage.py runserver
 
