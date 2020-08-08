@@ -28,8 +28,9 @@ class CustomUser(AbstractUser):
     name = models.CharField(_('name'), max_length=128, default='user')
 
     # username field를 제외한 나머지 항목 중 빈칸으로 남기면 안되는 걸 required fields에서 명시해줄 수 있음
-    # confirmpw = models.CharField(
-    # _('confirmpw'), max_length = 128, default = '0000')
+    # confirmpw 왜 있어야 superuser 생성 되는 지 모르겠음.: 이건 나중에 정리하기
+    confirmpw = models.CharField(
+        _('confirmpw'), max_length=128, default='0000')
     user_type = models.CharField(_('user type'), max_length=2, default='A')
     phone_number = models.CharField(
         _('phone number'), max_length=11, default='01000000000')
