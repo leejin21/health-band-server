@@ -1,4 +1,3 @@
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
@@ -8,6 +7,7 @@ from .managers import CustomUserManager
 from random import randint
 # User model customize
 # 이름, 타입, 전화번호 추가해야 함.
+# username, name, user_type, phone_number
 
 
 class CustomUser(AbstractUser):
@@ -31,7 +31,7 @@ class CustomUser(AbstractUser):
     # confirmpw 왜 있어야 superuser 생성 되는 지 모르겠음.: 이건 나중에 정리하기
     confirmpw = models.CharField(
         _('confirmpw'), max_length=128, default='0000')
-    user_type = models.CharField(_('user type'), max_length=2, default='A')
+    user_type = models.CharField(_('user type'), max_length=1, default='W')
     phone_number = models.CharField(
         _('phone number'), max_length=11, default='01000000000')
     # phone_num = models
@@ -44,3 +44,11 @@ class CustomUser(AbstractUser):
         if not self.username or type(self.username) != str:
             return self.email
         return self.username
+
+
+class WPCouple:
+    # db 양상 지켜보기!!!
+    wearer = models.ForeignKey(
+        CustomUser, related_name='wearee', on_delete=models.CASCADE)
+    protector = models.ForeignKey(
+        CustomUser, related_name='protectee', on_delete=models.CASCADE)

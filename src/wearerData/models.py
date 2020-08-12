@@ -2,13 +2,13 @@ from django.db import models
 from users.models import CustomUser
 # Create your models here.
 from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
 
 
 class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
-    time = models.TimeField(_('nowTime'), auto_now=True)
+    time = models.TimeField(_('nowTime'), default=timezone.now())
     tempHumid = models.CharField(_('temp&humid_sensor'), max_length=150)
-    earthMag = models.CharField(_('earthMag_sensor'), max_length=150)
     atmosPress = models.CharField(
         _('atmospherePressure_sensor'), max_length=150)
     gyro = models.CharField(_('gyro_sensor'), max_length=150)
@@ -20,7 +20,6 @@ class WearerData(models.Model):
 
 '''
 온습도센서: tempHumid
-지자계센서: earthMag
 기압 센서: atmosPress
 자이로센서: gyro
 가속도샌서: accel

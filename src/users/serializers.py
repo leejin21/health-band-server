@@ -84,9 +84,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         #         _("The two password fields didn't match."))
         # 아래 코드는 user_type이 a,b,A,B 중 하나가 아닐 경우 error raise하도록 하는 것
         # customized code
-        if data['user_type'] not in ['A', 'B', 'a', 'b']:
+        if data['user_type'] not in ['P', 'W', 'p', 'w']:
             raise serializers.ValidationError(
-                _('user_type should be A or B')
+                _('user_type should be P or W')
             )
         return data
 
@@ -145,3 +145,4 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             )
 
         return self.instance
+
