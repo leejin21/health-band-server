@@ -58,12 +58,12 @@ https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1
 
 ### end points
 ```
-/rest-auth/login/ (POST)
+/custom/login/ (POST)
 
 - username
 - email
 - password
-- Returns Token key
+- Returns Token key, user data(username, name, user_type, phone_number)
 ```
 ```
 /rest-auth/logout/ (POST)

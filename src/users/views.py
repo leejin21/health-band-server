@@ -2,7 +2,10 @@ from django.shortcuts import render
 
 # Create your views here.
 from rest_auth.views import LoginView
-from .models import CustomUser
+from .models import CustomUser, WPCouple
+from rest_framework.viewsets import ModelViewSet
+
+from .serializers import WPCoupleSerializer
 
 # username, name, user_type, phone_number
 
@@ -25,3 +28,8 @@ class CustomLoginView(LoginView):
         # **아래가 중요한 코드**
         orginal_response.data.update(mydata)
         return orginal_response
+
+
+# class WPCoupleViewSet(ModelViewSet):
+#     queryset = WPCouple.objects.all()
+#     serializer_class = WPCoupleSerializer

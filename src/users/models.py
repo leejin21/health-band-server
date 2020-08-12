@@ -24,6 +24,7 @@ class CustomUser(AbstractUser):
             'unique': _("A user with that username already exists."),
         },
         null='user'+str(randint(1, 99999)),
+        # primary_key=True
     )
     name = models.CharField(_('name'), max_length=128, default='user')
 
@@ -46,9 +47,9 @@ class CustomUser(AbstractUser):
         return self.username
 
 
-class WPCouple:
+class WPCouple(models.Model):
     # db 양상 지켜보기!!!
     wearer = models.ForeignKey(
-        CustomUser, related_name='wearee', on_delete=models.CASCADE)
+        to=CustomUser, related_name='wearee', on_delete=models.CASCADE)
     protector = models.ForeignKey(
-        CustomUser, related_name='protectee', on_delete=models.CASCADE)
+        to=CustomUser, related_name='protectee', on_delete=models.CASCADE)

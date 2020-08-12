@@ -1,4 +1,4 @@
-from users.models import CustomUser
+from users.models import CustomUser, WPCouple
 from django.conf import settings
 from rest_framework import serializers, exceptions
 from rest_framework.serializers import raise_errors_on_nested_writes, model_meta
@@ -13,6 +13,7 @@ from rest_auth.serializers import LoginSerializer
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
+    # wp_others = serializers.SlugRelatedField(many=True, slug_field='username')
     username = serializers.CharField(
         max_length=get_username_max_length(),
         min_length=allauth_settings.USERNAME_MIN_LENGTH,
@@ -27,7 +28,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['username', 'password',
-                  'user_type', 'name', 'phone_number']
+                  'user_type', 'name', 'phone_number', 'wp_others']
 
     def create(self, validated_data):
 
@@ -146,3 +147,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
         return self.instance
 
+
+# 로그인 후 wpcouple을 추가할 수 있는 시리얼라이저를 만들어야 할 것 같음.
+# 어떻게 하면 post도 제대로 할 수 있을까..... 으으ㅡ으으ㅡㅡ
+
+# class WPCoupleSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = WPCouple
+#         fields = '__all__'

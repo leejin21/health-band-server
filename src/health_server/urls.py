@@ -17,12 +17,20 @@ from allauth.account.views import confirm_email
 from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path, include
+# from rest_framework.routers import DefaultRouter
+
 from users.views import CustomLoginView
+# , WPCoupleViewSet
+
+# router = DefaultRouter()
+# router.register(r'wpcouple', WPCoupleViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('rest-auth/', include('rest_auth.urls')),
     path('rest-auth/registration', include('rest_auth.registration.urls')),
     url(r'^account/', include('allauth.urls')),
-    url(r'custom/login/', CustomLoginView.as_view(), name='my_custom_login')
+    url(r'custom/login/', CustomLoginView.as_view(), name='my_custom_login'),
+    # path('', include(router.urls)),
+
 ]
