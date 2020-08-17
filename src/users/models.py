@@ -47,8 +47,8 @@ class CustomUser(AbstractUser):
         return self.username
 
 
-class WPCouple(models.Model):
-    # db 양상 지켜보기!!!
+class LinkedUser(models.Model):
+    # TODO related_name 어떻게 바꿀 지 고민(더 관행에 맞게)
     wearer = models.ForeignKey(
         to=CustomUser, related_name='wearee', on_delete=models.CASCADE)
     protector = models.ForeignKey(

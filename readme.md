@@ -57,6 +57,12 @@ https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1
 아직 회원타입 관련 custom은 못한 상태
 
 ### end points
+```/linkedUser (GET, POST)
+- wearer
+- protector
+- Returns wearer and protector username
+```
+
 ```
 /custom/login/ (POST)
 
@@ -107,25 +113,7 @@ Registration
 - email
 ```
 
+## Custom User model
 
-## 요구사항
-
-
-> 1번 과제
-
-이제 django-rds 연결 확인하기(간단 예제로)
--> 간단 예제 구현 (V)  
--> post, 기능 구현해서 데이터 받기(rest api 기능, django)  
-    방법 1: 현재 app post에서 구현해주기
-    https://medium.com/swlh/build-your-first-rest-api-with-django-rest-framework-e394e39a482c
--> 회원가입, 로그인 기능 구현하기
-    - 회원가입
-    유저 아이디 네임 비번 post로 보낼 주소 만들기(post 주소)
-    mysql에 데이터 삽입하고 성공하면 success 뭐 이런식으로 안드로이드에 보내주고(get)
-    - 로그인
-    로그인이면 아이디 패스워드를 안드에서 보내고 서버에서 셀렉트 쿼리 해서 맞는 row 찾아서 있으면 그 유저 모든 정보를 안드에 보내주고
--> 주소 안드로이드팀에 전달해주기  
-
-> 2번 과제
-
-
+validate_^field^에서 return value에 value 대신 다른 값을 넣으면 해당 값으로 save된다는 데서 착안하여 
+foreign field를 2개 넣은 model serializer function 만드는 데 성공함.(src/users/serializers.py 참고)

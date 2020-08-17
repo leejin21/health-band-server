@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import CustomUser, WPCouple
+from .models import CustomUser, LinkedUser
 # Register your models here.
 admin.site.register(CustomUser)
-admin.site.register(WPCouple)
+admin.site.register(LinkedUser)

@@ -1,4 +1,4 @@
-from users.models import CustomUser, WPCouple
+from users.models import CustomUser, LinkedUser
 from django.conf import settings
 from rest_framework import serializers, exceptions
 from rest_framework.serializers import raise_errors_on_nested_writes, model_meta
@@ -28,7 +28,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ['username', 'password',
-                  'user_type', 'name', 'phone_number', 'wp_others']
+                  'user_type', 'name', 'phone_number']
 
     def create(self, validated_data):
 
@@ -89,6 +89,7 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 _('user_type should be P or W')
             )
+        data['user_type'] = data['user_type'].upper()
         return data
 
     def get_cleaned_data(self):
@@ -148,10 +149,51 @@ class UserRegisterSerializer(serializers.ModelSerializer):
         return self.instance
 
 
-# 로그인 후 wpcouple을 추가할 수 있는 시리얼라이저를 만들어야 할 것 같음.
-# 어떻게 하면 post도 제대로 할 수 있을까..... 으으ㅡ으으ㅡㅡ
+class LinkedUserSerializer(serializers.Serializer):
+    wearer = serializers.CharField(max_length=150)
+    protector = serializers.CharField(max_length=150)
 
-# class WPCoupleSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = WPCouple
-#         fields = '__all__'
+    def validate_wearer(self, value):
+        # wearer id 받아서 CustomUser에 있는 id인 지 확인하고 해당 CustomUser 인스턴스로 저장
+        cand_users = CustomUser.objects.filter(username=value)
+        if len(cand_users) == 0 or len(cand_users) > 1:
+            raise serializers.ValidationError(
+                _('wearer id is not included in the system or more than one instance')
+            )
+        elif cand_users[0].user_type != "W":
+            raise serializers.ValidationError(
+                _("written wearer id's type is not W:Wearer")
+            )
+        return cand_users[0]
+
+    def validate_protector(self, value):
+        # protector id 받아서 CustomUser에 있는 id인 지 확인하고 해당 CustomUser 인스턴스로 저장
+        cand_users = CustomUser.objects.filter(username=value)
+        if len(cand_users) == 0 or len(cand_users) > 1:
+            raise serializers.ValidationError(
+                _('wearer id is not included in the system or more than one instance')
+            )
+        elif cand_users[0].user_type != "P":
+            raise serializers.ValidationError(
+                _("written wearer id's type is not W:Wearer")
+            )
+        return cand_users[0]
+
+    # override
+    def create(self, validated_data):
+        """
+        Create and return a new LinkedUser instance, given the validated data.
+        """
+        # wearer = CustomUser.objects.get(username=self.user_id)
+        return LinkedUser.objects.create(**validated_data)
+
+    # override
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Snippet` instance, given the validated data.
+        """
+        instance.wearer = validated_data.get('wearer', instance.wearer)
+        instance.protector = validated_data.get(
+            'protector', instance.protector)
+        instance.save()
+        return instance
