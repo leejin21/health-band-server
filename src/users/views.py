@@ -7,8 +7,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.authentication import TokenAuthentication
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.generics import CreateAPIView
+
+from rest_auth.models import TokenModel
 
 from .serializers import LinkedUserSerializer
 
@@ -73,7 +76,10 @@ class CustomLoginView(LoginView):
 class LinkedUserPostView(CreateAPIView):
     # url: /linkedUser/post/
     # TODO 로그인한 유저가 스스로와 연관된 유저만 추가할 수 있다는 security error 설정 넣기
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    # FIXED: 위 코드 떄문에 계속 Anonymous User 관련 오류 떴었는데, 이는 self.request.user을 쓰기 위해서는 `authentication_classes = [어쩌고]`로 header에 숨겨져 있는 token을 찾아내는 코드(재료)가 필요하기 때문인 것으로 추정된다.
+
     queryset = LinkedUser.objects.all()
     serializer_class = LinkedUserSerializer
     # overrided method
@@ -94,12 +100,12 @@ class LinkedUserPostView(CreateAPIView):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        print("header:", headers, "request.headers:",
-              self.request.headers)
+
         original_response = Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
         # SECTION overriding code
+
         if self.request.user.user_type == "W":
             # loginned user type == wearer
             linkedUser = serializer.validated_data['protector']
