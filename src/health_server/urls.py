@@ -17,12 +17,14 @@ from allauth.account.views import confirm_email
 from django.conf.urls import url
 from django.contrib import admin
 from django.urls import path, include
+# from rest_framework.urlpatterns import format_suffix_patterns
 from rest_framework.routers import DefaultRouter
 
-from users.views import CustomLoginView, LinkedUserViewSet
+from users.views import CustomLoginView, LinkedUserPostView
 
-router = DefaultRouter()
-router.register(r'linkedUser', LinkedUserViewSet)
+# router = DefaultRouter()
+# router.register(r'linkedUser', LinkedUserViewSet)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -30,6 +32,12 @@ urlpatterns = [
     path('rest-auth/registration', include('rest_auth.registration.urls')),
     url(r'^account/', include('allauth.urls')),
     url(r'custom/login/', CustomLoginView.as_view(), name='my_custom_login'),
-    path('', include(router.urls)),
+    # path('', include(router.urls)),
+    path('linkedUser/post/', LinkedUserPostView.as_view())
 
 ]
+
+
+# urlpatterns += format_suffix_patterns([
+#     path('linkedUser/', LinkedUserView.as_view()),
+# ], allowed=['json', 'html'])

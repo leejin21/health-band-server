@@ -3,7 +3,12 @@ from django.shortcuts import render
 # Create your views here.
 from rest_auth.views import LoginView
 from .models import CustomUser, LinkedUser
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.generics import CreateAPIView
 
 from .serializers import LinkedUserSerializer
 
@@ -13,7 +18,8 @@ class CustomLoginView(LoginView):
     # LoginView의 자식 클래스
     def get_response(self):
         '''
-        return updated data, which includes 
+        overrided method, customized by
+        returning updated data, which includes
         userdata(username, name, user_type, phone_number),
         linked_users(i: username, phone_number),
         status
@@ -34,8 +40,8 @@ class CustomLoginView(LoginView):
 
     def find_linked_users(self, User):
         '''
-        return dict of 
-        {"i": 
+        return dict of
+        {"i":
             {
             "username": user.self.all()[i].other.username
             "phone_number": user.self.all()[i].other.phone_number
@@ -51,20 +57,84 @@ class CustomLoginView(LoginView):
             if User.user_type == "W":
                 linked_users_dict[str(i)] = {
                     "username": u.protector.username,
+                    "name": u.protector.name,
                     "phone_number": u.protector.phone_number
                 }
             else:
                 linked_users_dict[str(i)] = {
                     "username": u.wearer.username,
+                    "name": u.wearer.name,
                     "phone_number": u.wearer.phone_number
                 }
 
         return linked_users_dict
 
 
-class LinkedUserViewSet(ModelViewSet):
-    # url: /linkedUser/
-    # TODO post 직후 get response에서 추가한 LinkedUser.objects.all()의 모든 내용(username, phone_number)을 get할 수 있게 한다: viewset, apiview 등 중에서 뭘 써야 할 지 더 고민하기
-    # TODO /linkedUser/publicPost/ 같이 등록되어있는 linkedUser 인스턴스들을 다 알려주지 않는 방향으로 하기.
+class LinkedUserPostView(CreateAPIView):
+    # url: /linkedUser/post/
+    # TODO 로그인한 유저가 스스로와 연관된 유저만 추가할 수 있다는 security error 설정 넣기
+    permission_classes = [AllowAny]
     queryset = LinkedUser.objects.all()
     serializer_class = LinkedUserSerializer
+    # overrided method
+
+    def create(self, request, *args, **kwargs):
+        '''
+        Overrided method.
+        Instead of returning wearer and protector usernames, this returns newLinkedUser(loginned user's newly linked user)'s information(username, name, phone_number) and status.
+        For the overriding, I copied all of the original create() method's code and instead of returning the Response itself, I customized the Response.data which type is in dict form.
+
+        The reason I copied all of the original create() method is that I could not use serializer itself if I simply called super().create(). However, I have no aware of security issues, so using super() could be right.
+        '''
+
+        # create() method로 return하는 Response에는 data가 initial data와 동일, 변형하고 저장한 validated_data와 다르기 때문에 override해 줘야 함.
+
+        # SECTION original method
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        print("header:", headers, "request.headers:",
+              self.request.headers)
+        original_response = Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        # SECTION overriding code
+        if self.request.user.user_type == "W":
+            # loginned user type == wearer
+            linkedUser = serializer.validated_data['protector']
+        else:
+            # loginned user type == protector
+            linkedUser = serializer.validated_data['wearer']
+
+        # customizing the original_response.data
+        update_data = {
+            "newlinkedUser": {
+                "username": linkedUser.username,
+                "name": linkedUser.name,
+                "user_type": linkedUser.user_type,
+                "phone_number": linkedUser.phone_number
+            },
+            "status": "success"
+        }
+        # original_response.data.clear()
+        original_response.data.update(update_data)
+
+        return original_response
+
+
+# class LinkedUserView(APIView):
+
+    # def get(self, request, format=None):
+    #     # print(self.request.user)
+    #     linkedUsers = LinkedUser.objects.all()
+    #     serializer = LinkedUserSerializer(linkedUsers, many=True)
+    #     # print(serializer.data)
+    #     return Response(serializer.data)
+
+    # def post(self, request, format=None):
+    #     serializer = LinkedUserSerializer(data=request.data)
+    #     if serializer.is_valid():
+    #         serializer.save()
+    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

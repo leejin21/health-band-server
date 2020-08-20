@@ -171,11 +171,11 @@ class LinkedUserSerializer(serializers.Serializer):
         cand_users = CustomUser.objects.filter(username=value)
         if len(cand_users) == 0 or len(cand_users) > 1:
             raise serializers.ValidationError(
-                _('wearer id is not included in the system or more than one instance')
+                _('protector id is not included in the system or more than one instance')
             )
         elif cand_users[0].user_type != "P":
             raise serializers.ValidationError(
-                _("written wearer id's type is not W:Wearer")
+                _("written wearer id's type is not P:Protector")
             )
         return cand_users[0]
 
