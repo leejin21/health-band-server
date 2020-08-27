@@ -105,7 +105,7 @@ class LinkedUserPostView(CreateAPIView):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
         # SECTION overriding code
-
+        print(headers)
         if self.request.user.user_type == "W":
             # loginned user type == wearer
             linkedUser = serializer.validated_data['protector']

@@ -61,6 +61,7 @@ https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1
 - wearer
 - protector
 - Returns newlinkeduser's information(username, name, user_type, phone_number)
+- In the header, need to include the token: rf) clients/hana.py
 ```
 
 ```
@@ -116,4 +117,17 @@ Registration
 ## Custom User model
 
 validate_^field^에서 return value에 value 대신 다른 값을 넣으면 해당 값으로 save된다는 데서 착안하여 
-foreign field를 2개 넣은 model serializer function 만드는 데 성공함.(src/users/serializers.py 참고)
+foreign field를 2개 넣은 model serializer function 만드는 데 성공함.(src/users/serializers.py 참고, validate_함수 이용)
+
+
+
+## authentication_classes 관련 이슈
+
+
+
+## clients/hana.py 관련 설명
+
+## wearer data 저장 관련 이슈
+- clients/hana.py
+login용, wearerData 저장용, linkedUser 저장용 등을 만들어야 함(아직 예쁘게 정리되지 않은 상태)
+- Wearer Data의 time에 timezone 관련하여 KR 시간으로 저장이 안된다. KR 시간으로 저장되도록 해야 함.

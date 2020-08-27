@@ -7,15 +7,16 @@ from django.utils import timezone
 
 class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
+    # TODO default를 KR 시간으로 맞춰야 함
     time = models.TimeField(_('nowTime'), default=timezone.now())
-    tempHumid = models.CharField(_('temp&humid_sensor'), max_length=150)
-    atmosPress = models.CharField(
-        _('atmospherePressure_sensor'), max_length=150)
-    gyro = models.CharField(_('gyro_sensor'), max_length=150)
-    accel = models.CharField(_('accelerate_sensor'), max_length=150)
-    heartRate = models.CharField(_('heartRate_sensor'), max_length=150)
-    sound = models.CharField(_('sound_sensor'), max_length=150)
-    vibrate = models.CharField(_('vibrate_sensor'), max_length=150)
+    tempHumid = models.CharField(_('temp&humid_sensor'), max_length=50)
+    # atmosPress = models.CharField(
+    # _('atmospherePressure_sensor'), max_length = 150)
+    gyro = models.CharField(_('gyro_sensor'), max_length=50)
+    accel = models.CharField(_('accelerate_sensor'), max_length=50)
+    heartRate = models.CharField(_('heartRate_sensor'), max_length=50)
+    sound = models.CharField(_('sound_sensor'), max_length=50)
+    vibrate = models.CharField(_('vibrate_sensor'), max_length=50)
 
 
 '''
