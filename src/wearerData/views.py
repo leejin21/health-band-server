@@ -72,6 +72,8 @@ class SensorGetView(ListAPIView):
 
     time_filter_list = [datetime.now().date()-timedelta(days=i)
                         for i in range(6, -1, -1)]
+    # 오름차순
+
     # queryset에 의하면
     queryset = WearerData.objects.filter(
         nowTime__in=time_filter_list).order_by('nowTime')
@@ -95,6 +97,14 @@ class SensorGetView(ListAPIView):
         # print(type(serializer.data[0]['nowTime']))
         # return Response(serializer.data)
 
+    def getDate(self, i, sensorDataList):
+        # cur_diff: 현재 날짜와 며칠 차이 나는 지
+
+        str_date = sensorDataList[i]['nowTime'].split('T')[0]
+        dt_date = datetime.strptime(str_date, "%Y-%m-%d").date()
+        cur_diff = int(str(datetime.now().date() - dt_date).split()[0][0])
+        return cur_diff
+
     def getStatValueDict(self, sensorDataList, sensorName):
         '''
         get statistics values of sensorData,
@@ -103,32 +113,25 @@ class SensorGetView(ListAPIView):
         sensorDataList: list of OrderedDict
         '''
         # statValues의 각 avg, min, max에 해당하는 val의 리스트 default값 어떻게 바꿀 지 고민하기
+        # statValues 0자리=0일전, 1자리=1일전, ...
         statValues = {"avg": [-1]*7, "min": [-1]*7, "max": [-1]*7}
         # 변수 초기화(에러 방지)
-        tot = 0
-        cnt = 0
-        minV = -100000
-        maxV = 100000
-        pre_diff = 6
+        tot = cnt = 0
+        minV, maxV = 100000, -100000
+        pre_diff = 6        # 오름차순 때문
 
         for i in range(len(sensorDataList)):
-            # cur_diff: 날짜 표시
-            str_date = sensorDataList[i]['nowTime'].split('T')[0]
-            print(str_date)
-            dt_date = datetime.strptime(str_date, "%Y-%m-%d").date()
-            print(dt_date, str(datetime.now().date() - dt_date).split()[0][0])
-            cur_diff = int(str(datetime.now().date() - dt_date).split()[0][0])
+            cur_diff = self.getDate(i, sensorDataList)
+            # 오름차순: sensorDataList가 오름차순으로 정렬되었기 때문
             cur_sens = int(sensorDataList[i][sensorName])
             if pre_diff != cur_diff:
-                # 요일이 달라지는 순간 직전까지 구했던 통계값들 모두 저장
+                # 요일이 달라지는 순간
                 # 저장
                 statValues["avg"][pre_diff] = tot/cnt
                 statValues["min"][pre_diff] = minV
                 statValues["max"][pre_diff] = maxV
                 # 초기화
-                tot = cur_sens
-                minV = cur_sens
-                maxV = cur_sens
+                tot = minV = maxV = cur_sens
                 cnt = 1
             else:
                 tot += cur_sens
@@ -138,6 +141,10 @@ class SensorGetView(ListAPIView):
                     maxV = cur_sens
                 cnt += 1
             pre_diff = cur_diff
+        # 마지막 날짜 케어해주기
+        statValues["avg"][pre_diff] = tot/cnt
+        statValues["min"][pre_diff] = minV
+        statValues["max"][pre_diff] = maxV
 
         return statValues
 
@@ -146,21 +153,23 @@ class TempHumidSensorGetView(SensorGetView):
 
     def tempHumidList(self, request, *args, **kwargs):
         serializer = super().list(request, *args, **kwargs)
-
-        response = Response(serializer.data)
+        print(self.time_filter_list)
         sensor_stats = dict()
         sensor_stats['temp'] = self.getStatValueDict(serializer.data, 'temp')
         sensor_stats['humid'] = self.getStatValueDict(serializer.data, 'humid')
 
         update_data = dict()
         for i in range(7):
+            # i=0일때 6일차이, 오름차순 때문
             day = str(self.time_filter_list[i])
+            # 오름차순(6일차이, 5일차이, ... 0일차이)
             update_data[day] = dict()
             for sensor in ['temp', 'humid']:
                 update_data[day][sensor] = {
-                    "avg": sensor_stats[sensor]['avg'][i],
-                    "min": sensor_stats[sensor]['min'][i],
-                    "max": sensor_stats[sensor]['max'][i],
+                    # i=0일때 6일차이이므로 리스트에서는 6일차일때 값 뽑아오기
+                    "avg": sensor_stats[sensor]['avg'][6-i],
+                    "min": sensor_stats[sensor]['min'][6-i],
+                    "max": sensor_stats[sensor]['max'][6-i],
                 }
 
         print(update_data)
@@ -170,23 +179,3 @@ class TempHumidSensorGetView(SensorGetView):
     def get(self, request, *args, **kwargs):
         # overrided method: from ListAPIView
         return self.tempHumidList(request, *args, **kwargs)
-
-        '''
-        [OrderedDict([('nowTime', '2020-08-26T00:00:00'), ('temp', '20'), ('humid', '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-08-26T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '20'), ('sound', '40'), ('stepCount', '1500')]),
-        OrderedDict([('nowTime', '2020-08-27T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-08-28T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-08-29T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-08-30T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-08-31T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-09-01T00:00:00'), ('temp', '20'), ('humid',
-                    '50'), ('heartRate', '30'), ('sound', '50'), ('stepCount', '2000')]),
-        OrderedDict([('nowTime', '2020-09-01T00:00:00'), ('temp', '20'), ('humid', '50'), ('heartRate', '40'), ('sound', '60'), ('stepCount', '2500')])]
-
-        '''
