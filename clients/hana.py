@@ -26,12 +26,10 @@ def client():
 
     # wearerData/post
     data = {
-        "tempHumid": "50",
-        "gyro": "80",
-        "accel": "20",
-        "heartRate": "30",
-        "sound": "30",
-        "vibrate": "30",
+        "tempHumid": "20",
+        "heartRate": "40",
+        "sound": "50",
+        "stepCount": "50",
     }
 
     response = requests.post(

@@ -57,6 +57,12 @@ https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1
 아직 회원타입 관련 custom은 못한 상태
 
 ### end points
+```wearerData/post/ (POST)
+
+```
+
+
+
 ```/linkedUser/post (POST)
 - wearer
 - protector
