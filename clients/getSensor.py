@@ -12,7 +12,7 @@ def clientGetSensor(sensorUrl):
     headers = {"Authorization": tokenEx.token_h()}
 
     response = requests.get(
-        soundurl, headers=headers)
+        sensorUrl, headers=headers)
     print(sensorUrl.split('/')[-2])
     print("Status Code:", response.status_code)
     response_data = response.json()
@@ -20,7 +20,7 @@ def clientGetSensor(sensorUrl):
 
 
 if __name__ == "__main__":
-    sensorUrl = hearturl
+    sensorUrl = tempHumidurl
     clientGetSensor(sensorUrl)
 
 

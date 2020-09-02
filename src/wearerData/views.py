@@ -69,8 +69,10 @@ class SensorGetView(ListAPIView):
     '''
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
-
-    queryset = WearerData.objects.all()
+    recent7days = [datetime.now().date()-timedelta(days=i)
+                   for i in range(6, -1, -1)]
+    queryset = WearerData.objects.filter(
+        nowDate__in=recent7days).order_by('nowDate')
 
     serializer_class = WearerDataSerializer
 
@@ -86,11 +88,9 @@ class SensorGetView(ListAPIView):
         # SECTION overrided code
 
         # 오름차순으로 6일 전부터 오늘까지
-        self.recent7days = [datetime.now().date()-timedelta(days=i)
-                            for i in range(6, -1, -1)]
-        print(self.recent7days)
-        queryset = queryset.filter(
-            user=self.request.user, nowTime__in=self.recent7days).order_by('nowTime')
+        # print(self.recent7days)
+
+        queryset = queryset.filter(user=self.request.user)
         serializer = self.get_serializer(queryset, many=True)
 
         # unlike the original code(which returns response), this method returns serializer
@@ -99,7 +99,7 @@ class SensorGetView(ListAPIView):
     def getDate(self, i, sensorDataList):
         # cur_diff: 현재 날짜와 며칠 차이 나는 지
 
-        str_date = sensorDataList[i]['nowTime'].split('T')[0]
+        str_date = sensorDataList[i]['nowDate']
         dt_date = datetime.strptime(str_date, "%Y-%m-%d").date()
         cur_diff = int(str(datetime.now().date() - dt_date).split()[0][0])
         return cur_diff
@@ -125,7 +125,7 @@ class SensorGetView(ListAPIView):
         tot = cnt = 0
         minV, maxV = 100000, -100000
         pre_diff = 6        # 오름차순 때문
-        print(sensorDataList)
+        # print(sensorDataList)
 
         for i in range(len(sensorDataList)):
             cur_diff = self.getDate(i, sensorDataList)
@@ -166,7 +166,7 @@ class SensorGetView(ListAPIView):
         sensorName: tuple of str, ex) 'temp', 'humid'
 
         TIME
-        time complexity: O(n*m), 
+        time complexity: O(n*m),
         where n = len(sensorName), m = len(sensorDataList)
 
         OUTPUT

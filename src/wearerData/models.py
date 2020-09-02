@@ -8,8 +8,10 @@ from django.utils import timezone
 class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     # TODO default를 KR 시간으로 맞춰야 함
-    nowTime = models.DateTimeField(
-        _('nowTime'), default=timezone.now(), null=True)
+    nowDate = models.DateField(
+        _('nowTime'), default=timezone.now().date(), null=True)
+    nowTime = models.TimeField(
+        _('nowTime'), default=timezone.now().time(), null=True)
     temp = models.CharField(_('temp_sensor'), max_length=50, default="20")
     humid = models.CharField(_('humid_sensor'), max_length=50, default='50')
     # atmosPress = models.CharField(
