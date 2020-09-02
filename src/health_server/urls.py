@@ -21,7 +21,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomLoginView, LinkedUserPostView
-from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView
+from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView, StepCountSensorGetView
 
 
 urlpatterns = [
@@ -42,5 +42,5 @@ urlpatterns += [path('sensorData/'+sensor, sensorView.as_view()) for sensor, sen
     ("tempHumid/", TempHumidSensorGetView),
     ("heartRate/", HeartSensorGetView),
     ("sound/", SoundSensorGetView),
-    # ("stepCount", stepCountSensorGetView)
+    ("stepCount/", StepCountSensorGetView)
 ]]

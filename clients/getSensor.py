@@ -1,11 +1,12 @@
 import requests
 import json
-
+import pprint
 import tokenEx
 
 hearturl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/heartRate/"
 tempHumidurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/tempHumid/"
 soundurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/sound/"
+stepurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/stepCount/"
 
 
 def clientGetSensor(sensorUrl):
@@ -16,11 +17,11 @@ def clientGetSensor(sensorUrl):
     print(sensorUrl.split('/')[-2])
     print("Status Code:", response.status_code)
     response_data = response.json()
-    print(response_data)
+    pprint.pprint(response_data)
 
 
 if __name__ == "__main__":
-    sensorUrl = tempHumidurl
+    sensorUrl = stepurl
     clientGetSensor(sensorUrl)
 
 

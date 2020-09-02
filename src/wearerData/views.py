@@ -119,7 +119,7 @@ class SensorGetView(ListAPIView):
         returns avg, min, max values of each day in sensorDataList
         '''
         # statValues의 각 avg, min, max에 해당하는 val의 리스트 default값 어떻게 바꿀 지 고민하기
-        # statValues 0자리=0일전, 1자리=1일전, ...
+        # statValues 0자리=6일전, 1자리=5일전, ...
         statValues = {"avg": [-1]*7, "min": [-1]*7, "max": [-1]*7}
         # 변수 초기화(에러 방지)
         tot = cnt = 0
@@ -141,13 +141,13 @@ class SensorGetView(ListAPIView):
                 tot = minV = maxV = cur_sens
                 cnt = 1
             else:
+                # 요일이 같을 때: tot, minV, maxV 업데이트
                 tot += cur_sens
                 if minV > cur_sens:
                     minV = cur_sens
                 if maxV < cur_sens:
                     maxV = cur_sens
                 cnt += 1
-            print(statValues, pre_diff, cur_diff)
             pre_diff = cur_diff
         # 마지막 날짜 케어해주기
         statValues["avg"][pre_diff] = tot/cnt
@@ -160,6 +160,7 @@ class SensorGetView(ListAPIView):
         '''
         EXPLANATION
         get each sensors' statistic values(min, max, avg) by dict form.
+        sensor stepCount is an exception.
 
         INPUT
         sensorDataList: list of OrderedDict
@@ -241,14 +242,54 @@ class SoundSensorGetView(SensorGetView):
         return self.soundList(request, *args, **kwargs)
 
 
-# class stepCountSensorGetView(SensorGetView):
+class StepCountSensorGetView(SensorGetView):
 
-#     def stepCountList(self, request, *args, **kwargs):
-#         serializer = super().list(request, *args, **kwargs)
-#         update_data = self.sensorList(serializer.data, 'stepCount')
-#         # response.data.update(update_data)
-#         return Response(update_data)
+    def stepCountList(self, request, *args, **kwargs):
+        '''
+        EXPLANATION
+        Figures out when the day changes and updates the final sensor value to the list "steps".
+        Gets step values by dictionary as following form
+        {
+            "stepCount": {
+                "day": value
+            }
+        }
 
-#     def get(self, request, *args, **kwargs):
-#         # overrided method: from ListAPIView
-#         return self.stepCountList(request, *args, **kwargs)
+
+        TIME
+        O(n), where n = len(serializer.data)
+
+        OUTPUT
+        returns Response which includes the dict data which was mentioned before
+        '''
+        serializer = super().list(request, *args, **kwargs)
+        pre_diff = 6
+        steps = [-1]*7
+        daystep = 0
+        for i in range(len(serializer.data)):
+
+            cur_diff = self.getDate(i, serializer.data)
+            cur_sens = int(serializer.data[i]["stepCount"])
+
+            if pre_diff != cur_diff:
+                # 요일이 달라지는 순간
+                steps[pre_diff] = daystep
+
+            # 초기화 or 업데이트
+            daystep = cur_sens
+            # 다음 i의 요일이 다른 요일인 지 체크
+            pre_diff = cur_diff
+
+        # 마지막 날짜 케어해주기
+        steps[pre_diff] = daystep
+
+        update_data = {
+            "stepCount": {str(self.recent7days[i]): steps[6-i] for i in range(7)}
+        }
+
+        # response.data.update(update_data)
+        return Response(update_data)
+
+    def get(self, request, *args, **kwargs):
+        # overrided method: from ListAPIView
+        return self.stepCountList(request, *args, **kwargs)
