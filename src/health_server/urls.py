@@ -21,7 +21,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomLoginView, LinkedUserPostView
-from wearerData.views import WearerDataPostView, TempHumidSensorGetView
+from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView
 # router = DefaultRouter()
 # router.register(r'linkedUser', LinkedUserViewSet)
 
@@ -35,10 +35,17 @@ urlpatterns = [
     # path('', include(router.urls)),
     path('linkedUser/post/', LinkedUserPostView.as_view()),
     path('wearerData/post/', WearerDataPostView.as_view()),
-    path('sensorData/tempHumid/', TempHumidSensorGetView.as_view()),
+
 
 ]
 
+# 무식한 방법으로 정리해줌...==> 이거 유식한 방법으로 정리하는 식으로 바꿔주기
+urlpatterns += [path('sensorData/'+sensor, sensorView.as_view()) for sensor, sensorView in [
+    ("tempHumid/", TempHumidSensorGetView),
+    ("heartRate/", HeartSensorGetView),
+    ("sound/", SoundSensorGetView),
+    # ("stepCount", stepCountSensorGetView)
+]]
 
 # urlpatterns += format_suffix_patterns([
 #     path('linkedUser/', LinkedUserView.as_view()),

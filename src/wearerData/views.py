@@ -70,13 +70,7 @@ class SensorGetView(ListAPIView):
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
 
-    time_filter_list = [datetime.now().date()-timedelta(days=i)
-                        for i in range(6, -1, -1)]
-    # 오름차순
-
-    # queryset에 의하면
-    queryset = WearerData.objects.filter(
-        nowTime__in=time_filter_list).order_by('nowTime')
+    queryset = WearerData.objects.all()
 
     serializer_class = WearerDataSerializer
 
@@ -90,12 +84,17 @@ class SensorGetView(ListAPIView):
             return self.get_paginated_response(serializer.data)
 
         # SECTION overrided code
-        serializer = self.get_serializer(
-            queryset.filter(user=self.request.user), many=True)
 
+        # 오름차순으로 6일 전부터 오늘까지
+        self.recent7days = [datetime.now().date()-timedelta(days=i)
+                            for i in range(6, -1, -1)]
+        print(self.recent7days)
+        queryset = queryset.filter(
+            user=self.request.user, nowTime__in=self.recent7days).order_by('nowTime')
+        serializer = self.get_serializer(queryset, many=True)
+
+        # unlike the original code(which returns response), this method returns serializer
         return serializer
-        # print(type(serializer.data[0]['nowTime']))
-        # return Response(serializer.data)
 
     def getDate(self, i, sensorDataList):
         # cur_diff: 현재 날짜와 며칠 차이 나는 지
@@ -107,10 +106,17 @@ class SensorGetView(ListAPIView):
 
     def getStatValueDict(self, sensorDataList, sensorName):
         '''
-        get statistics values of sensorData,
-        returns avg, min, max values of each day in sensorDataList
+        EXPLANATION
+        get statistics values of sensorData
 
+        INPUT
         sensorDataList: list of OrderedDict
+
+        TIME
+        time complexity: O(n), where n = len(sensorDataList)
+
+        OUTPUT
+        returns avg, min, max values of each day in sensorDataList
         '''
         # statValues의 각 avg, min, max에 해당하는 val의 리스트 default값 어떻게 바꿀 지 고민하기
         # statValues 0자리=0일전, 1자리=1일전, ...
@@ -119,6 +125,7 @@ class SensorGetView(ListAPIView):
         tot = cnt = 0
         minV, maxV = 100000, -100000
         pre_diff = 6        # 오름차순 때문
+        print(sensorDataList)
 
         for i in range(len(sensorDataList)):
             cur_diff = self.getDate(i, sensorDataList)
@@ -140,6 +147,7 @@ class SensorGetView(ListAPIView):
                 if maxV < cur_sens:
                     maxV = cur_sens
                 cnt += 1
+            print(statValues, pre_diff, cur_diff)
             pre_diff = cur_diff
         # 마지막 날짜 케어해주기
         statValues["avg"][pre_diff] = tot/cnt
@@ -148,23 +156,42 @@ class SensorGetView(ListAPIView):
 
         return statValues
 
+    def sensorList(self, sensorDataList, *sensorName):
+        '''
+        EXPLANATION
+        get each sensors' statistic values(min, max, avg) by dict form.
 
-class TempHumidSensorGetView(SensorGetView):
+        INPUT
+        sensorDataList: list of OrderedDict
+        sensorName: tuple of str, ex) 'temp', 'humid'
 
-    def tempHumidList(self, request, *args, **kwargs):
-        serializer = super().list(request, *args, **kwargs)
-        print(self.time_filter_list)
+        TIME
+        time complexity: O(n*m), 
+        where n = len(sensorName), m = len(sensorDataList)
+
+        OUTPUT
+        returns dictionary which has form like the following
+        update_data = {
+            "day": {
+                "sensor": {
+                    "avg": avg,
+                    "min": min,
+                    "max": max
+                },
+                ...
+            },
+            ...
+        }
+        '''
         sensor_stats = dict()
-        sensor_stats['temp'] = self.getStatValueDict(serializer.data, 'temp')
-        sensor_stats['humid'] = self.getStatValueDict(serializer.data, 'humid')
-
+        for sensor in sensorName:
+            sensor_stats[sensor] = self.getStatValueDict(
+                sensorDataList, sensor)
         update_data = dict()
         for i in range(7):
-            # i=0일때 6일차이, 오름차순 때문
-            day = str(self.time_filter_list[i])
-            # 오름차순(6일차이, 5일차이, ... 0일차이)
+            day = str(self.recent7days[i])
             update_data[day] = dict()
-            for sensor in ['temp', 'humid']:
+            for sensor in sensorName:
                 update_data[day][sensor] = {
                     # i=0일때 6일차이이므로 리스트에서는 6일차일때 값 뽑아오기
                     "avg": sensor_stats[sensor]['avg'][6-i],
@@ -172,10 +199,56 @@ class TempHumidSensorGetView(SensorGetView):
                     "max": sensor_stats[sensor]['max'][6-i],
                 }
 
-        print(update_data)
+        return update_data
+
+
+class TempHumidSensorGetView(SensorGetView):
+
+    def tempHumidList(self, request, *args, **kwargs):
+        serializer = super().list(request, *args, **kwargs)
+        update_data = self.sensorList(serializer.data, 'temp', 'humid')
         # response.data.update(update_data)
         return Response(update_data)
 
     def get(self, request, *args, **kwargs):
         # overrided method: from ListAPIView
         return self.tempHumidList(request, *args, **kwargs)
+
+
+class HeartSensorGetView(SensorGetView):
+
+    def heartRateList(self, request, *args, **kwargs):
+        serializer = super().list(request, *args, **kwargs)
+        update_data = self.sensorList(serializer.data, 'heartRate')
+        # response.data.update(update_data)
+        return Response(update_data)
+
+    def get(self, request, *args, **kwargs):
+        # overrided method: from ListAPIView
+        return self.heartRateList(request, *args, **kwargs)
+
+
+class SoundSensorGetView(SensorGetView):
+
+    def soundList(self, request, *args, **kwargs):
+        serializer = super().list(request, *args, **kwargs)
+        update_data = self.sensorList(serializer.data, 'sound')
+        # response.data.update(update_data)
+        return Response(update_data)
+
+    def get(self, request, *args, **kwargs):
+        # overrided method: from ListAPIView
+        return self.soundList(request, *args, **kwargs)
+
+
+# class stepCountSensorGetView(SensorGetView):
+
+#     def stepCountList(self, request, *args, **kwargs):
+#         serializer = super().list(request, *args, **kwargs)
+#         update_data = self.sensorList(serializer.data, 'stepCount')
+#         # response.data.update(update_data)
+#         return Response(update_data)
+
+#     def get(self, request, *args, **kwargs):
+#         # overrided method: from ListAPIView
+#         return self.stepCountList(request, *args, **kwargs)
