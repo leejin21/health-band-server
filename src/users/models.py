@@ -35,6 +35,8 @@ class CustomUser(AbstractUser):
     user_type = models.CharField(_('user type'), max_length=1, default='W')
     phone_number = models.CharField(
         _('phone number'), max_length=11, default='01000000000')
+    fcm_token = models.CharField(
+        _('fcm token'), max_length=300, default="", null=True)
     # phone_num = models
     REQUIRED_FIELDS = ['name', 'confirmpw', 'phone_number', 'user_type', ]
 

@@ -24,11 +24,12 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     user_type = serializers.CharField(write_only=True)
     name = serializers.CharField(write_only=True)
     phone_number = serializers.CharField(write_only=True)
+    fcm_token = serializers.CharField(write_only=True)
 
     class Meta:
         model = CustomUser
         fields = ['username', 'password',
-                  'user_type', 'name', 'phone_number']
+                  'user_type', 'name', 'phone_number', 'fcm_token']
 
     def create(self, validated_data):
 
@@ -197,3 +198,9 @@ class LinkedUserSerializer(serializers.Serializer):
             'protector', instance.protector)
         instance.save()
         return instance
+
+
+class UserEditFcmTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = ('username', 'fcm_token')

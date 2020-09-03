@@ -11,12 +11,11 @@ def client():
     # login
     credentials = {
         "username": "w3@gmail.com",
-        "email": "w3@gmail.com",
-        "password": "0000"
+        "fcm_token": "hellp"
     }
 
-    response = requests.post(
-        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/custom/login/", data=credentials)
+    response = requests.put(
+        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/user/changeFcmToken/", data=credentials, headers=headers)
 
     print("Status Code:", response.status_code)
     response_data = response.json()

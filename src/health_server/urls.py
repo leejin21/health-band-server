@@ -20,8 +20,8 @@ from django.urls import path, include
 # from rest_framework.urlpatterns import format_suffix_patterns
 from rest_framework.routers import DefaultRouter
 
-from users.views import CustomLoginView, LinkedUserPostView
-from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView, StepCountSensorGetView
+from users.views import CustomLoginView, LinkedUserPostView, UserFcmTokenPostView
+from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView, StepCountSensorGetView, WearerEventPostView
 
 
 urlpatterns = [
@@ -31,10 +31,10 @@ urlpatterns = [
     url(r'^account/', include('allauth.urls')),
     url(r'custom/login/', CustomLoginView.as_view(), name='my_custom_login'),
     # path('', include(router.urls)),
+    path('user/changeFcmToken/', UserFcmTokenPostView.as_view()),
     path('linkedUser/post/', LinkedUserPostView.as_view()),
     path('wearerData/post/', WearerDataPostView.as_view()),
-
-
+    path('wearerEvent/post/', WearerEventPostView.as_view())
 ]
 
 # 무식한 방법으로 정리해줌...==> 이거 유식한 방법으로 정리하는 식으로 바꿔주기: maybe router?

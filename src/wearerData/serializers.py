@@ -1,6 +1,8 @@
 
 from rest_framework import serializers, exceptions
-from .models import WearerData
+from .models import WearerData, WearerEvent
+
+from django.utils.translation import ugettext_lazy as _
 
 
 # TODO serializers 채우기
@@ -25,13 +27,32 @@ class WearerDataSerializer(serializers.Serializer):
         # wearer = CustomUser.objects.get(username=self.user_id)
         return WearerData.objects.create(**validated_data)
 
-    # override
-    # def update(self, instance, validated_data):
-    #     """
-    #     Update and return an existing instance, given the validated data.
-    #     """
-    #     instance.wearer = validated_data.get('wearer', instance.wearer)
-    #     instance.protector = validated_data.get(
-    #         'protector', instance.protector)
-    #     instance.save()
-    #     return instance
+
+class WearerEventSerializer(serializers.Serializer):
+    nowDate = serializers.DateField(read_only=True)
+    nowTime = serializers.TimeField(read_only=True)
+    fallEvent = serializers.CharField(max_length=1)
+    heartEvent = serializers.CharField(max_length=1)
+
+    def validate_fallEvent(self, value):
+        if value.upper() == "T":
+            return True
+        elif value.upper() == "F":
+            return False
+
+        else:
+            raise serializers.ValidationError(
+                _('fallEvent value should be T,t or F,f'))
+
+    def validate_heartEvent(self, value):
+        if value.upper() == "T":
+            return True
+        elif value.upper() == "F":
+            return False
+
+        else:
+            raise serializers.ValidationError(
+                _('heartRate value should be T,t or F,f'))
+
+    def create(self, validated_data):
+        return WearerEvent.objects.create(**validated_data)

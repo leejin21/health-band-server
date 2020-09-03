@@ -23,6 +23,18 @@ class WearerData(models.Model):
     stepCount = models.CharField(_('stepCount'), max_length=50, default='200')
 
 
+class WearerEvent(models.Model):
+    user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
+    nowDate = models.DateField(
+        _('nowTime'), default=timezone.now().date(), null=True)
+    nowTime = models.TimeField(
+        _('nowTime'), default=timezone.now().time(), null=True)
+    # 낙상이벤트
+    fallEvent = models.BooleanField(default=False, null=True)
+    # 부정맥이벤트
+    heartEvent = models.BooleanField(default=False, null=True)
+
+
 '''
 온도: temp
 습도: humid

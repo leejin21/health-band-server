@@ -1,4 +1,6 @@
 from django.shortcuts import render
+from django.core.exceptions import ValidationError
+from django.http import Http404
 
 # Create your views here.
 from rest_auth.views import LoginView
@@ -9,11 +11,11 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.authentication import TokenAuthentication
 from rest_framework.viewsets import ModelViewSet
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, UpdateAPIView
 
 from rest_auth.models import TokenModel
 
-from .serializers import LinkedUserSerializer
+from .serializers import LinkedUserSerializer, UserEditFcmTokenSerializer
 
 
 class CustomLoginView(LoginView):
@@ -33,7 +35,8 @@ class CustomLoginView(LoginView):
                   {"username": self.user.username,
                    "name": self.user.name,
                    "user_type": self.user.user_type,
-                   "phone_number": self.user.phone_number},
+                   "phone_number": self.user.phone_number,
+                   "fcm_token": self.user.fcm_token},
                   "linked_users": self.find_linked_users(self.user),
                   "status": "success"}
         # print(type(orginal_response.data))
@@ -129,18 +132,48 @@ class LinkedUserPostView(CreateAPIView):
         return original_response
 
 
-# class LinkedUserView(APIView):
+class UserFcmTokenPostView(UpdateAPIView):
+    # UserDetailsView 대신 그냥 PutRetrieve? 관련 뷰 오버라이딩하기
+    serializer_class = UserEditFcmTokenSerializer
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    queryset = CustomUser.objects.all()
 
-    # def get(self, request, format=None):
-    #     # print(self.request.user)
-    #     linkedUsers = LinkedUser.objects.all()
-    #     serializer = LinkedUserSerializer(linkedUsers, many=True)
-    #     # print(serializer.data)
-    #     return Response(serializer.data)
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance.fcm_token = self.request.data.get('fcm_token')
+        instance.save()
 
-    # def post(self, request, format=None):
-    #     serializer = LinkedUserSerializer(data=request.data)
-    #     if serializer.is_valid():
-    #         serializer.save()
-    #         return Response(serializer.data, status=status.HTTP_201_CREATED)
-    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        self.perform_update(serializer)
+
+        return Response(serializer.data)
+
+    def get_object(self):
+        """
+        Returns the object the view is displaying.
+        Overrided the code by not using lookup_url_kwarg, and gets the object by self username(using the token)
+        """
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # May raise a http404 error if obj not exists or its number is >= 2.
+        obj = get_object_or_404(queryset, username=self.request.user.username)
+
+        # May raise a permission denied
+        self.check_object_permissions(self.request, obj)
+
+        return obj
+
+
+def get_object_or_404(queryset, **filter_kwargs):
+    """
+    Overrided Code: from django.shortcuts, get_object_or_404
+    gets queryset by filter_kwargs.
+    """
+    try:
+        return queryset.get(**filter_kwargs)
+    except queryset.model.DoesNotExist:
+        raise Http404('No %s matches the given query or it has too much querys.' %
+                      queryset.model._meta.object_name)

@@ -10,8 +10,8 @@ from rest_framework import status
 from rest_framework.response import Response
 
 
-from .models import WearerData
-from .serializers import WearerDataSerializer
+from .models import WearerData, WearerEvent
+from .serializers import WearerDataSerializer, WearerEventSerializer
 
 from datetime import datetime, timedelta
 
@@ -32,7 +32,7 @@ class WearerDataPostView(CreateAPIView):
         Overrided method. added update_data which includes status: sucess.
         '''
         # SECTION original method
-        serializer = WearerDataSerializer(data=request.data)
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
@@ -293,3 +293,43 @@ class StepCountSensorGetView(SensorGetView):
     def get(self, request, *args, **kwargs):
         # overrided method: from ListAPIView
         return self.stepCountList(request, *args, **kwargs)
+
+
+class WearerEventPostView(CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+    queryset = WearerEvent.objects.all()
+    serializer_class = WearerEventSerializer
+
+    def create(self, request, *args, **kwargs):
+        '''
+        Overrided method. added update_data which includes status: sucess.
+        '''
+        # SECTION original method
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        print("done is_valid")
+        self.perform_create(serializer)
+        print("done perform_create")
+        headers = self.get_success_headers(serializer.data)
+
+        response = Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        # SECTION overriding code
+        # customizing the original_response.data
+        update_data = {
+            "data": serializer.data,
+            "status": "success"
+        }
+        response.data.clear()
+        response.data.update(update_data)
+
+        return response
+
+    def perform_create(self, serializer):
+        '''
+        Overrided method. saves user as self.request.user to the serializer.
+        '''
+        print(self.request.user)
+        serializer.save(user=self.request.user)
