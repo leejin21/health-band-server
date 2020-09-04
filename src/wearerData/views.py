@@ -89,8 +89,11 @@ class SensorGetView(ListAPIView):
 
         # 오름차순으로 6일 전부터 오늘까지
         # print(self.recent7days)
-
-        queryset = queryset.filter(user=self.request.user)
+        if self.request.user.user_type == "P":
+            queryset = queryset.filter(
+                user=self.request.user.protectee.all()[0].wearer)
+        else:
+            queryset = queryset.filter(user=self.request.user)
         serializer = self.get_serializer(queryset, many=True)
 
         # unlike the original code(which returns response), this method returns serializer

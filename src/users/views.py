@@ -49,7 +49,8 @@ class CustomLoginView(LoginView):
         return dict of
         {"i":
             {
-            "username": user.self.all()[i].other.username
+            "username": user.self.all()[i].other.username,
+            "name": user.self.all()[i].other.name,
             "phone_number": user.self.all()[i].other.phone_number
             }
         }
@@ -58,6 +59,8 @@ class CustomLoginView(LoginView):
         ) if User.user_type == "W" else User.protectee.all()
 
         linked_users_dict = dict()
+
+        # User.protectee.all()
 
         for i, u in enumerate(linked_users_list):
             if User.user_type == "W":
@@ -108,7 +111,7 @@ class LinkedUserPostView(CreateAPIView):
             serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
         # SECTION overriding code
-        print(headers)
+
         if self.request.user.user_type == "W":
             # loginned user type == wearer
             linkedUser = serializer.validated_data['protector']
