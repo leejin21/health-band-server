@@ -16,6 +16,7 @@ from rest_framework.generics import CreateAPIView, UpdateAPIView
 from rest_auth.models import TokenModel
 
 from .serializers import LinkedUserSerializer, UserEditFcmTokenSerializer
+from datetime import datetime, timedelta
 
 
 class CustomLoginView(LoginView):
@@ -29,6 +30,10 @@ class CustomLoginView(LoginView):
         linked_users(i: username, phone_number),
         status
         '''
+
+        # 회원가입 이후 session 부여: stats로 데이터 옮겼는 지
+        self.request.session['removedDay'] = datetime.now().date()
+
         orginal_response = super().get_response()
 
         mydata = {"userdata":

@@ -10,15 +10,19 @@ from rest_framework import status
 from rest_framework.response import Response
 
 
-from .models import WearerData, WearerEvent
+from .models import WearerData, WearerEvent, WearerStats
 from .serializers import WearerDataSerializer, WearerEventSerializer
 
 from datetime import datetime, timedelta
+
+# TODO removeStatsNData 추가해주기, session 잘 작동하는 지 확인하기, SensorGetView에서는 연산 하루만(당일) 해주는 걸로 하기.
+# TODO get에서 dict로 받는 걸로 해주기(sensor:walk) 이렇게
 
 
 class WearerDataPostView(CreateAPIView):
     # url: /linkedUser/post/
     # TODO 로그인한 유저가 스스로와 연관된 유저만 추가할 수 있다는 security error 설정 넣기
+
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
     # FIXED: 위 코드 떄문에 계속 Anonymous User 관련 오류 떴었는데, 이는 self.request.user을 쓰기 위해서는 `authentication_classes = [어쩌고]`로 header에 숨겨져 있는 token을 찾아내는 코드(재료)가 필요하기 때문인 것으로 추정된다.
@@ -40,7 +44,7 @@ class WearerDataPostView(CreateAPIView):
         response = Response(
             serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
-        # SECTION overriding code
+        # SECTION overrided code
         # customizing the original_response.data
         update_data = {
             "data": serializer.data,
@@ -65,6 +69,19 @@ class SensorGetView(ListAPIView):
     HeartRateSensorGetView,
     SoundSensorGetView,
     StepCountGetView.
+
+    TODO 변경사항:
+    1) 코드 읽기 쉽게
+        key=value로 받아오는 get으로 생각하고 여기에 딸린 child views 다 여기로 통합하기
+    2) 보호자도 access 가능하게
+        key=value로 username도 받아오기: 보호자가 보호하고 있지 않은 착용자의 경우, 에러 발생
+    3)  IF 오늘 이전의 데이터 6일치가 WearerStats에 없으면
+            연산하는 동시에 WearerStats table에 저장하기.
+        ELSE
+            WearerStats에서 가져오기.
+
+        오늘 데이터는 매번 그냥 연산해주기.
+        7일전 데이터까지는 WearerEvent에서 삭제해주기
 
     '''
     permission_classes = [IsAuthenticated]
@@ -258,7 +275,6 @@ class StepCountSensorGetView(SensorGetView):
             }
         }
 
-
         TIME
         O(n), where n = len(serializer.data)
 
@@ -336,3 +352,116 @@ class WearerEventPostView(CreateAPIView):
         '''
         print(self.request.user)
         serializer.save(user=self.request.user)
+
+
+def removeStatsNData(wearer, request):
+    '''
+    1.  stats에 마지막으로 등록되어 있는 데이터 날짜 = lastStatsDate
+        와 data에 당일 제외 마지막으로 등록되어 있는 데이터 날짜= lastDataDate 비교
+        (fillStats)
+
+        lastStatsDate < lastDataDate일 때,
+            그 사이 date에 대해 wearerData => stats로 추가
+    2.  7일 이전 wearerData는 삭제하기
+    3.  1년 이전 stats 삭제
+    '''
+    today = datetime.now().date()
+
+    if request.session['removedDay'] == today or WearerData.objects.filter(nowDate__lt=today):
+        # 1. 이미 오늘 removeStatsNData()를 call했거나(실행시간 줄이기 위해 session 사용)
+        # 2. 막 회원가입해서 예전 데이터가 없을 경우
+        return
+    else:
+        # 위 경우에 해당하지 않을 때
+        request.session['removedDay'] = datetime.now().date()
+
+    yearAgo = datetime.now().date()-timedelta(days=365)
+    weekAgo = datetime.now().date()-timedelta(days=7)
+
+    # SECTION 1. lastStatsDate < lastDataDate일 때, 그 사이 date에 대해 wearerData => stats로 추가
+    stats_queryset = WearerStats.objects.order_by('nowDate').filter(
+        user=wearer, nowDate__gt=yearAgo)
+
+    data_queryset = WearerData.objects.order_by('nowDate').filter(
+        user=wearer, nowDate__gt=yearAgo, nowDate__lt=today)
+
+    lastStatsDate = stats_queryset[len(stats_queryset)-1].nowDate
+    # stats에 마지막으로 등록되어 있는 데이터 날짜
+
+    lastDataDate = data_queryset[len(data_queryset)-1].nowDate
+    # data에 당일 제외 마지막으로 등록되어 있는 데이터 날짜
+
+    fillStats(wearer, lastStatsDate, lastDataDate)
+
+    # SECTION 2: 7일 이전 wearerData는 삭제하기
+
+    WearerData.objects.filter(nowDate__lte=weekAgo).delete()
+
+    # SECTION 3: 1년 이전 stats 삭제
+
+    WearerStats.objects.filter(nowDate__lte=yearAgo).delete()
+
+
+def fillStats(wearer, stats_last, data_last):
+    data_queryset = WearerData.objects.order_by(
+        'nowDate').filter(user=wearer, nowDate__gt=stats_last, nowDate__lte=data_last)
+    if data_queryset == 0:
+        return False
+    else:
+        saveStatDayValues(wearer, data_queryset)
+
+
+def saveStatDayValues(wearer, data_queryset):
+    '''
+    EXPLANATION
+    WearerData에서 각 날짜별로, 각 센서별 통계값 얻어서 WearerStats에 넣어주기
+
+    INPUT
+    data_queryset
+
+    TIME
+
+    OUTPUT
+    returns True if successfully saved the instances in to the model WearerStats,
+    else False
+    '''
+    pre_date = data_queryset.first()
+    steps = 0
+    he_dict = {'tot': 0, 'min': 0, 'max': 0}
+    s_dict = {'tot': 0, 'min': 0, 'max': 0}
+    t_dict = {'tot': 0, 'min': 0, 'max': 0}
+    hu_dict = {'tot': 0, 'min': 0, 'max': 0}
+    cnt = 0
+
+    for data in data_queryset:
+        cur_date = data.nowDate
+        sc_list = [(he_dict, int(data.heartRate)), (s_dict, int(data.sound)),
+                   (t_dict, int(data.temp)), (hu_dict, int(data.humid))]
+        if cur_date != pre_date:
+            # date가 달라지는 순간:
+            # 저장
+            if len(WearerStats.objects.filter(user=wearer, nowDate=pre_date)) == 0:
+                WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
+                                           heartRate_max=he_dict['max'], heartRate_avg=he_dict['tot']/cnt, heartRate_min=he_dict['min'],
+                                           sound_max=s_dict['max'], sound_avg=s_dict['tot']/cnt, sound_min=s_dict['min'],
+                                           temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
+                                           humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
+            # 초기화
+            steps = data.stepCount
+            for dic, dat in sc_list:
+                dic['max'] = dic['tot'] = dic['min'] = dat
+            cnt = 1
+
+        else:
+            # date가 같을 때:
+            # 업데이트
+            steps = data.stepCount
+            for dic, dat in sc_list:
+                if dic['max'] < dat:
+                    dic['max'] = dat
+                elif dic['min'] > dat:
+                    dic['min'] = dat
+                dic['tot'] += dat
+            cnt += 1
+
+    return True
