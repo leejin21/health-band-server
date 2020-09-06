@@ -10,8 +10,8 @@ def client():
 
     # login
     credentials = {
-        "username": "p2@gmail.com",
-        "email": "p2@gmail.com",
+        "username": "w3@gmail.com",
+        "email": "w3@gmail.com",
         "password": "0000"
     }
 

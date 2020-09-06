@@ -31,9 +31,6 @@ class CustomLoginView(LoginView):
         status
         '''
 
-        # 회원가입 이후 session 부여: stats로 데이터 옮겼는 지
-        self.request.session['removedDay'] = datetime.now().date()
-
         orginal_response = super().get_response()
 
         mydata = {"userdata":
@@ -45,6 +42,9 @@ class CustomLoginView(LoginView):
                   "linked_users": self.find_linked_users(self.user),
                   "status": "success"}
         # print(type(orginal_response.data))
+
+        self.user.dataRemovedDate = datetime.now().date() - timedelta(days=1)
+
         # **아래가 중요한 코드**
         orginal_response.data.update(mydata)
         return orginal_response

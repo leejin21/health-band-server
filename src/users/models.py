@@ -5,6 +5,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from .managers import CustomUserManager
 from random import randint
+from datetime import datetime
 # User model customize
 # 이름, 타입, 전화번호 추가해야 함.
 # username, name, user_type, phone_number
@@ -37,7 +38,10 @@ class CustomUser(AbstractUser):
         _('phone number'), max_length=11, default='01000000000')
     fcm_token = models.CharField(
         _('fcm token'), max_length=300, default="", null=True)
+    dataRemovedDate = models.DateField(
+        _('data removed date'), default=datetime.now().date())
     # phone_num = models
+
     REQUIRED_FIELDS = ['name', 'confirmpw', 'phone_number', 'user_type', ]
 
     # objects: `objects = UserManager()` 재정의한 것

@@ -41,18 +41,18 @@ class WearerStats(models.Model):
 
     heartRate_max = models.IntegerField(_('day heart rate max'))
     heartRate_min = models.IntegerField(_('day heart rate min'))
-    heartRate_avg = models.IntegerField(_('day heart rate avg'))
+    heartRate_avg = models.FloatField(_('day heart rate avg'))
 
     sound_max = models.IntegerField(_('day sound max'))
-    sound_avg = models.IntegerField(_('day sound avg'))
+    sound_avg = models.FloatField(_('day sound avg'))
     sound_min = models.IntegerField(_('day sound min'))
 
     temp_max = models.IntegerField(_('temp rate max'))
-    temp_avg = models.IntegerField(_('temp rate avg'))
+    temp_avg = models.FloatField(_('temp rate avg'))
     temp_min = models.IntegerField(_('temp rate min'))
 
     humid_max = models.IntegerField(_('humid rate max'))
-    humid_avg = models.IntegerField(_('humid rate avg'))
+    humid_avg = models.FloatField(_('humid rate avg'))
     humid_min = models.IntegerField(_('humid rate min'))
 
     stepCount = models.IntegerField(_('day step count'))

@@ -9,14 +9,11 @@ from rest_framework.settings import api_settings
 from rest_framework import status
 from rest_framework.response import Response
 
-
 from .models import WearerData, WearerEvent, WearerStats
 from .serializers import WearerDataSerializer, WearerEventSerializer
+from users.models import CustomUser
 
 from datetime import datetime, timedelta
-
-# TODO removeStatsNData 추가해주기, session 잘 작동하는 지 확인하기, SensorGetView에서는 연산 하루만(당일) 해주는 걸로 하기.
-# TODO get에서 dict로 받는 걸로 해주기(sensor:walk) 이렇게
 
 
 class WearerDataPostView(CreateAPIView):
@@ -52,7 +49,7 @@ class WearerDataPostView(CreateAPIView):
         }
         response.data.clear()
         response.data.update(update_data)
-
+        removeStatsNData(self.request.user)
         return response
 
     def perform_create(self, serializer):
@@ -64,32 +61,35 @@ class WearerDataPostView(CreateAPIView):
 
 class SensorGetView(ListAPIView):
     '''
-    parent class of
-    TempHumidSensorGetView,
-    HeartRateSensorGetView,
-    SoundSensorGetView,
-    StepCountGetView.
+    END POINT
+    wearerData/get/
 
-    TODO 변경사항:
-    1) 코드 읽기 쉽게
-        key=value로 받아오는 get으로 생각하고 여기에 딸린 child views 다 여기로 통합하기
-    2) 보호자도 access 가능하게
-        key=value로 username도 받아오기: 보호자가 보호하고 있지 않은 착용자의 경우, 에러 발생
-    3)  IF 오늘 이전의 데이터 6일치가 WearerStats에 없으면
-            연산하는 동시에 WearerStats table에 저장하기.
-        ELSE
-            WearerStats에서 가져오기.
+    CALLING SEQUENCE
+    list - sensorList - eachSensorList - statsDict, getTodayStats
+                      - stepCountList  - getTodayStats
 
-        오늘 데이터는 매번 그냥 연산해주기.
-        7일전 데이터까지는 WearerEvent에서 삭제해주기
+    EXPLANATIONS
+    get statistic version of wearerdata(sensor datas) to the wearer
+    and also to the protector, whose protector-wearer relationships are saved in linkedUsers model.
 
+    INPUT
+    as get param, needs
+    1. wearerID: wearer_username
+    2. sensorName: which_sensor
+
+    OUTPUT
+    type=json, if no wearerData posted on that day, -1
+    examples of json form is written in eachSensorList, and stepCountList.
     '''
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
+
     recent7days = [datetime.now().date()-timedelta(days=i)
                    for i in range(6, -1, -1)]
-    queryset = WearerData.objects.filter(
-        nowDate__in=recent7days).order_by('nowDate')
+    # 오름차순으로 6일 전부터 오늘까지
+
+    queryset = WearerData.objects.order_by('nowDate').filter(
+        nowDate=recent7days[-1])
 
     serializer_class = WearerDataSerializer
 
@@ -103,80 +103,32 @@ class SensorGetView(ListAPIView):
             return self.get_paginated_response(serializer.data)
 
         # SECTION overrided code
+        print(self.request.user, self.request.query_params.get('wearerID'))
 
-        # 오름차순으로 6일 전부터 오늘까지
-        # print(self.recent7days)
         if self.request.user.user_type == "P":
-            queryset = queryset.filter(
-                user=self.request.user.protectee.all()[0].wearer)
+            # protector가 요청하는 경우, wearer 확인하기
+            wearID = self.request.query_params.get('wearerID')
+            self.wearer = CustomUser.objects.get(username=wearID)
+            linkedUsers = self.request.user.protectee.filter(
+                wearer=self.wearer)
+            if len(linkedUsers) != 0:
+                queryset = queryset.filter(user=linkedUsers[0].wearer)
+            else:
+                raise ValueError(
+                    "The relationship is not registered in linkedUsers model!")
         else:
+            # wearer가 요청하는 경우
+            self.wearer = self.request.user
             queryset = queryset.filter(user=self.request.user)
         serializer = self.get_serializer(queryset, many=True)
 
-        # unlike the original code(which returns response), this method returns serializer
-        return serializer
+        if self.request.query_params.get('sensorName') not in ['tempHumid', 'sound', 'heartRate', 'stepCount']:
+            raise ValueError(
+                "the params should be one of these: 'tempHumid', 'sound', 'heartRate', 'stepCount'")
 
-    def getDate(self, i, sensorDataList):
-        # cur_diff: 현재 날짜와 며칠 차이 나는 지
+        return Response(self.sensorList(serializer.data, self.request.query_params.get('sensorName')))
 
-        str_date = sensorDataList[i]['nowDate']
-        dt_date = datetime.strptime(str_date, "%Y-%m-%d").date()
-        cur_diff = int(str(datetime.now().date() - dt_date).split()[0][0])
-        return cur_diff
-
-    def getStatValueDict(self, sensorDataList, sensorName):
-        '''
-        EXPLANATION
-        get statistics values of sensorData
-
-        INPUT
-        sensorDataList: list of OrderedDict
-
-        TIME
-        time complexity: O(n), where n = len(sensorDataList)
-
-        OUTPUT
-        returns avg, min, max values of each day in sensorDataList
-        '''
-        # statValues의 각 avg, min, max에 해당하는 val의 리스트 default값 어떻게 바꿀 지 고민하기
-        # statValues 0자리=6일전, 1자리=5일전, ...
-        statValues = {"avg": [-1]*7, "min": [-1]*7, "max": [-1]*7}
-        # 변수 초기화(에러 방지)
-        tot = cnt = 0
-        minV, maxV = 100000, -100000
-        pre_diff = 6        # 오름차순 때문
-        # print(sensorDataList)
-
-        for i in range(len(sensorDataList)):
-            cur_diff = self.getDate(i, sensorDataList)
-            # 오름차순: sensorDataList가 오름차순으로 정렬되었기 때문
-            cur_sens = int(sensorDataList[i][sensorName])
-            if pre_diff != cur_diff:
-                # 요일이 달라지는 순간
-                # 저장
-                statValues["avg"][pre_diff] = tot/cnt
-                statValues["min"][pre_diff] = minV
-                statValues["max"][pre_diff] = maxV
-                # 초기화
-                tot = minV = maxV = cur_sens
-                cnt = 1
-            else:
-                # 요일이 같을 때: tot, minV, maxV 업데이트
-                tot += cur_sens
-                if minV > cur_sens:
-                    minV = cur_sens
-                if maxV < cur_sens:
-                    maxV = cur_sens
-                cnt += 1
-            pre_diff = cur_diff
-        # 마지막 날짜 케어해주기
-        statValues["avg"][pre_diff] = tot/cnt
-        statValues["min"][pre_diff] = minV
-        statValues["max"][pre_diff] = maxV
-
-        return statValues
-
-    def sensorList(self, sensorDataList, *sensorName):
+    def sensorList(self, sensorDataList, sensorName):
         '''
         EXPLANATION
         get each sensors' statistic values(min, max, avg) by dict form.
@@ -184,11 +136,25 @@ class SensorGetView(ListAPIView):
 
         INPUT
         sensorDataList: list of OrderedDict
-        sensorName: tuple of str, ex) 'temp', 'humid'
+        sensorName: str, choices) 'tempHumid', 'sound', 'heartRate', 'stepCount'
 
         TIME
         time complexity: O(n*m),
         where n = len(sensorName), m = len(sensorDataList)
+
+        '''
+        if sensorName == 'tempHumid':
+            return self.eachSensorList(sensorDataList, 'temp', 'humid')
+        elif sensorName == "stepCount":
+            return self.stepCountList(sensorDataList)
+        else:
+            return self.eachSensorList(sensorDataList, sensorName)
+
+    def eachSensorList(self, sensorDataList, *sensorName):
+        '''
+        EXPLANATION
+        get each sensors' statistic values(min, max, avg) by dict form.
+        sensor stepCount is an exception.
 
         OUTPUT
         returns dictionary which has form like the following
@@ -203,115 +169,140 @@ class SensorGetView(ListAPIView):
             },
             ...
         }
+
         '''
-        sensor_stats = dict()
+        today_stats = dict()
         for sensor in sensorName:
-            sensor_stats[sensor] = self.getStatValueDict(
+            today_stats[sensor] = self.getTodayStats(
                 sensorDataList, sensor)
+
         update_data = dict()
-        for i in range(7):
-            day = str(self.recent7days[i])
-            update_data[day] = dict()
+
+        for i in range(6):
+            # 6일 전~ 1일 전: Stats에서 가져오기
+            day = self.recent7days[i]
+            update_data[str(day)] = dict()
             for sensor in sensorName:
-                update_data[day][sensor] = {
-                    # i=0일때 6일차이이므로 리스트에서는 6일차일때 값 뽑아오기
-                    "avg": sensor_stats[sensor]['avg'][6-i],
-                    "min": sensor_stats[sensor]['min'][6-i],
-                    "max": sensor_stats[sensor]['max'][6-i],
-                }
+                update_data[str(day)][sensor] = self.statsDict(day, sensor)
+        update_data[str(self.recent7days[-1])] = today_stats
 
         return update_data
 
-
-class TempHumidSensorGetView(SensorGetView):
-
-    def tempHumidList(self, request, *args, **kwargs):
-        serializer = super().list(request, *args, **kwargs)
-        update_data = self.sensorList(serializer.data, 'temp', 'humid')
-        # response.data.update(update_data)
-        return Response(update_data)
-
-    def get(self, request, *args, **kwargs):
-        # overrided method: from ListAPIView
-        return self.tempHumidList(request, *args, **kwargs)
-
-
-class HeartSensorGetView(SensorGetView):
-
-    def heartRateList(self, request, *args, **kwargs):
-        serializer = super().list(request, *args, **kwargs)
-        update_data = self.sensorList(serializer.data, 'heartRate')
-        # response.data.update(update_data)
-        return Response(update_data)
-
-    def get(self, request, *args, **kwargs):
-        # overrided method: from ListAPIView
-        return self.heartRateList(request, *args, **kwargs)
-
-
-class SoundSensorGetView(SensorGetView):
-
-    def soundList(self, request, *args, **kwargs):
-        serializer = super().list(request, *args, **kwargs)
-        update_data = self.sensorList(serializer.data, 'sound')
-        # response.data.update(update_data)
-        return Response(update_data)
-
-    def get(self, request, *args, **kwargs):
-        # overrided method: from ListAPIView
-        return self.soundList(request, *args, **kwargs)
-
-
-class StepCountSensorGetView(SensorGetView):
-
-    def stepCountList(self, request, *args, **kwargs):
+    def statsDict(self, date, sensor):
         '''
         EXPLANATION
-        Figures out when the day changes and updates the final sensor value to the list "steps".
-        Gets step values by dictionary as following form
-        {
-            "stepCount": {
-                "day": value
-            }
-        }
+        get statistics values of 6 days ago ~ yesterday from WearerStats
 
-        TIME
-        O(n), where n = len(serializer.data)
+        INPUT
+        date: datetime.date object
+        sensor: string, choice = temp, humid, sound, heartRate
+
+        TIME COMPLEXITY
+        Vary by the filtering process in db
 
         OUTPUT
-        returns Response which includes the dict data which was mentioned before
-        '''
-        serializer = super().list(request, *args, **kwargs)
-        pre_diff = 6
-        steps = [-1]*7
-        daystep = 0
-        for i in range(len(serializer.data)):
-
-            cur_diff = self.getDate(i, serializer.data)
-            cur_sens = int(serializer.data[i]["stepCount"])
-
-            if pre_diff != cur_diff:
-                # 요일이 달라지는 순간
-                steps[pre_diff] = daystep
-
-            # 초기화 or 업데이트
-            daystep = cur_sens
-            # 다음 i의 요일이 다른 요일인 지 체크
-            pre_diff = cur_diff
-
-        # 마지막 날짜 케어해주기
-        steps[pre_diff] = daystep
-
-        update_data = {
-            "stepCount": {str(self.recent7days[i]): steps[6-i] for i in range(7)}
+        return d = {
+            "avg": avgval,
+            "max": maxval,
+            "min": minval,
         }
 
-        # response.data.update(update_data)
-        return Response(update_data)
+        if no certain data which contains date and sensor value, 
+        then return d = {"avg": -1, "min": -1, "max": -1}
+        '''
+        qs = WearerStats.objects.filter(user=self.wearer, nowDate=date)
+        d = dict()
+        if len(qs) == 0:
+            d = {"avg": -1, "min": -1, "max": -1}
+        elif len(qs) == 1:
+            stat = qs[0].__dict__
+            d = {
+                "avg": stat[sensor+'_avg'],
+                "max": stat[sensor+'_max'],
+                "min": stat[sensor+'_min'],
+            }
+        else:
+            raise ValueError(
+                "This data instance's (date, user) in WearerStats is not unique.")
+        return d
 
-    def get(self, request, *args, **kwargs):
-        # overrided method: from ListAPIView
-        return self.stepCountList(request, *args, **kwargs)
+    def getTodayStats(self, sensorDataList, sensorName):
+        '''
+        EXPLANATION
+        get statistics values of today sensorData
+
+        INPUT
+        sensorDataList: list of OrderedDict
+        sensorName can be temp, humid, sound, heartRate, stepCount
+
+        TIME
+        time complexity: O(n), where n = len(sensorDataList)
+
+        OUTPUT
+        if sensorName == "stepCount" : returns tot value of stepCount at that day
+        else: returns avg, min, max values of each day in sensorDataList
+
+        '''
+        # 변수 초기화(에러 방지)
+        minV = 10000
+        maxV = -10000
+        if sensorName != "stepCount":
+            statValues = dict()
+            tot = cnt = 0
+
+            for i in range(len(sensorDataList)):
+                cur_sens = int(sensorDataList[i][sensorName])
+                tot += cur_sens
+                if minV > cur_sens:
+                    minV = cur_sens
+                if maxV < cur_sens:
+                    maxV = cur_sens
+                cnt += 1
+
+        # 마지막 날짜 케어해주기
+            statValues['avg'] = tot/cnt
+            statValues['max'] = maxV
+            statValues['min'] = minV
+        else:
+            statValues = int(sensorDataList[len(sensorDataList)-1][sensorName])
+
+        return statValues
+
+    def stepCountList(self, sensorDataList):
+        '''
+        EXPLANATION
+        get stepCount's value by dict form.
+
+        OUTPUT
+        returns dictionary which has form like the following
+        update_data = {
+            "sensor": {
+                "day": val,
+                ...
+            },
+            ...
+        }
+
+        '''
+        sensor = 'stepCount'
+        update_data = dict()
+        update_data[sensor] = dict()
+
+        for i in range(6):
+            # 6일 전~ 1일 전: Stats에서 가져오기
+            day = self.recent7days[i]
+            qs = WearerStats.objects.filter(nowDate=day, user=self.wearer)
+            if len(qs) == 1:
+                update_data[sensor][str(day)] = qs[0].stepCount
+            elif len(qs) == 0:
+                update_data[sensor][str(day)] = -1
+            else:
+                raise ValueError(
+                    "This data instance's (date, user) in WearerStats is not unique.")
+
+        today_stats = self.getTodayStats(sensorDataList, sensor)
+        update_data[sensor][str(self.recent7days[-1])] = today_stats
+        return update_data
 
 
 class WearerEventPostView(CreateAPIView):
@@ -354,58 +345,53 @@ class WearerEventPostView(CreateAPIView):
         serializer.save(user=self.request.user)
 
 
-def removeStatsNData(wearer, request):
+def removeStatsNData(wearer):
     '''
-    1.  stats에 마지막으로 등록되어 있는 데이터 날짜 = lastStatsDate
-        와 data에 당일 제외 마지막으로 등록되어 있는 데이터 날짜= lastDataDate 비교
-        (fillStats)
-
-        lastStatsDate < lastDataDate일 때,
+    1.  lastStatsDate < lastDataDate일 때,
             그 사이 date에 대해 wearerData => stats로 추가
     2.  7일 이전 wearerData는 삭제하기
-    3.  1년 이전 stats 삭제
+    3.  1년 이전 wearerStats 삭제
     '''
     today = datetime.now().date()
-
-    if request.session['removedDay'] == today or WearerData.objects.filter(nowDate__lt=today):
+    if wearer.dataRemovedDate == today or len(WearerData.objects.filter(nowDate__lt=today)) == 0:
         # 1. 이미 오늘 removeStatsNData()를 call했거나(실행시간 줄이기 위해 session 사용)
         # 2. 막 회원가입해서 예전 데이터가 없을 경우
         return
     else:
-        # 위 경우에 해당하지 않을 때
-        request.session['removedDay'] = datetime.now().date()
+        # 업데이트하고 다음 코드들 실행
+        wearer.dataRemovedDate = today
+        wearer.save()
 
     yearAgo = datetime.now().date()-timedelta(days=365)
     weekAgo = datetime.now().date()-timedelta(days=7)
 
     # SECTION 1. lastStatsDate < lastDataDate일 때, 그 사이 date에 대해 wearerData => stats로 추가
-    stats_queryset = WearerStats.objects.order_by('nowDate').filter(
-        user=wearer, nowDate__gt=yearAgo)
 
-    data_queryset = WearerData.objects.order_by('nowDate').filter(
+    stats_qs = WearerStats.objects.order_by('nowDate').filter(
+        user=wearer, nowDate__gt=yearAgo)
+    data_qs = WearerData.objects.order_by('nowDate').filter(
         user=wearer, nowDate__gt=yearAgo, nowDate__lt=today)
 
-    lastStatsDate = stats_queryset[len(stats_queryset)-1].nowDate
+    lastStatsDate = stats_qs.last().nowDate if len(
+        stats_qs) != 0 else data_qs.first().nowDate - timedelta(days=1)
     # stats에 마지막으로 등록되어 있는 데이터 날짜
 
-    lastDataDate = data_queryset[len(data_queryset)-1].nowDate
+    lastDataDate = data_qs.last().nowDate
     # data에 당일 제외 마지막으로 등록되어 있는 데이터 날짜
 
     fillStats(wearer, lastStatsDate, lastDataDate)
 
     # SECTION 2: 7일 이전 wearerData는 삭제하기
+    WearerData.objects.filter(user=wearer, nowDate__lte=weekAgo).delete()
 
-    WearerData.objects.filter(nowDate__lte=weekAgo).delete()
-
-    # SECTION 3: 1년 이전 stats 삭제
-
-    WearerStats.objects.filter(nowDate__lte=yearAgo).delete()
+    # # SECTION 3: 1년 이전 stats 삭제
+    WearerStats.objects.filter(user=wearer, nowDate__lte=yearAgo).delete()
 
 
 def fillStats(wearer, stats_last, data_last):
     data_queryset = WearerData.objects.order_by(
         'nowDate').filter(user=wearer, nowDate__gt=stats_last, nowDate__lte=data_last)
-    if data_queryset == 0:
+    if len(data_queryset) == 0:
         return False
     else:
         saveStatDayValues(wearer, data_queryset)
@@ -420,27 +406,32 @@ def saveStatDayValues(wearer, data_queryset):
     data_queryset
 
     TIME
+    O(len(data_queryset))
 
     OUTPUT
     returns True if successfully saved the instances in to the model WearerStats,
     else False
     '''
-    pre_date = data_queryset.first()
+    pre_date = data_queryset.first().nowDate
+
     steps = 0
-    he_dict = {'tot': 0, 'min': 0, 'max': 0}
-    s_dict = {'tot': 0, 'min': 0, 'max': 0}
-    t_dict = {'tot': 0, 'min': 0, 'max': 0}
-    hu_dict = {'tot': 0, 'min': 0, 'max': 0}
+    he_dict = {'tot': 0, 'min': 10000, 'max': -10000}
+    s_dict = {'tot': 0, 'min': 10000, 'max': -10000}
+    t_dict = {'tot': 0, 'min': 10000, 'max': -10000}
+    hu_dict = {'tot': 0, 'min': 10000, 'max': -10000}
     cnt = 0
 
     for data in data_queryset:
         cur_date = data.nowDate
         sc_list = [(he_dict, int(data.heartRate)), (s_dict, int(data.sound)),
-                   (t_dict, int(data.temp)), (hu_dict, int(data.humid))]
+                   (t_dict, int(data.temp)), (hu_dict, float(data.humid))]
         if cur_date != pre_date:
             # date가 달라지는 순간:
             # 저장
+
             if len(WearerStats.objects.filter(user=wearer, nowDate=pre_date)) == 0:
+                # print(wearer.username, "nowDate=", pre_date, "step=", steps, "\nheartRate=",
+                #       he_dict, "sound=", s_dict, "temp=", t_dict, "humid=", hu_dict)
                 WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
                                            heartRate_max=he_dict['max'], heartRate_avg=he_dict['tot']/cnt, heartRate_min=he_dict['min'],
                                            sound_max=s_dict['max'], sound_avg=s_dict['tot']/cnt, sound_min=s_dict['min'],
@@ -457,11 +448,22 @@ def saveStatDayValues(wearer, data_queryset):
             # 업데이트
             steps = data.stepCount
             for dic, dat in sc_list:
+                # 둘다 if로 한 이유: 가장 처음 날짜의 데이터가 딱 하나일 경우를 고려해서.
                 if dic['max'] < dat:
                     dic['max'] = dat
-                elif dic['min'] > dat:
+                if dic['min'] > dat:
                     dic['min'] = dat
                 dic['tot'] += dat
             cnt += 1
+        pre_date = cur_date
 
+    # 마지막 data 케어
+    steps = data.stepCount
+    # print(wearer.username, "nowDate=", pre_date, "step=", steps, "\nheartRate=",
+    #   he_dict, "sound=", s_dict, "temp=", t_dict, "humid=", hu_dict)
+    WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
+                               heartRate_max=he_dict['max'], heartRate_avg=he_dict['tot']/cnt, heartRate_min=he_dict['min'],
+                               sound_max=s_dict['max'], sound_avg=s_dict['tot']/cnt, sound_min=s_dict['min'],
+                               temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
+                               humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
     return True

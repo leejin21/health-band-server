@@ -3,60 +3,21 @@ import json
 import pprint
 import tokenEx
 
-hearturl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/heartRate/"
-tempHumidurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/tempHumid/"
-soundurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/sound/"
-stepurl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/stepCount/"
+getSensorUrl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/sensorData/get/"
 
 
-def clientGetSensor(sensorUrl):
-    headers = {"Authorization": tokenEx.token_h()}
+def clientGetSensor(sensorUrl, name):
+    headers = {"Authorization": tokenEx.token_h("p2")}
 
+    params = {"wearerID": tokenEx.wearerId("w3"), "sensorName": name}
     response = requests.get(
-        sensorUrl, headers=headers)
-    print(sensorUrl.split('/')[-2])
+        sensorUrl, headers=headers, params=params)
     print("Status Code:", response.status_code)
     response_data = response.json()
     pprint.pprint(response_data)
 
 
 if __name__ == "__main__":
-    sensorUrl = stepurl
-    clientGetSensor(sensorUrl)
-
-
-'''
-    temp humid
-avg  20   60
-max  30   70
-min  10   50
-
-    heartRate
-avg     90
-max     100
-min     80
-
-    sound
-avg  30
-max  40
-min  20
-
-
-    data1 = {
-        "temp": "10",
-        "humid": "50",
-        "heartRate": "100",
-        "sound": "20",
-        "stepCount": "1000",
-    }
-
-    data2 = {
-        "temp": "30",
-        "humid": "70",
-        "heartRate": "80",
-        "sound": "40",
-        "stepCount": "2000",
-    }
-
-
-'''
+    sensorUrl = getSensorUrl
+    name = "tempHumid"
+    clientGetSensor(sensorUrl, name)

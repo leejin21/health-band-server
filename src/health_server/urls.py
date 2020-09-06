@@ -21,7 +21,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomLoginView, LinkedUserPostView, UserFcmTokenPostView
-from wearerData.views import WearerDataPostView, TempHumidSensorGetView, HeartSensorGetView, SoundSensorGetView, StepCountSensorGetView, WearerEventPostView
+from wearerData.views import WearerDataPostView, WearerEventPostView, SensorGetView
 
 
 urlpatterns = [
@@ -34,13 +34,6 @@ urlpatterns = [
     path('user/changeFcmToken/', UserFcmTokenPostView.as_view()),
     path('linkedUser/post/', LinkedUserPostView.as_view()),
     path('wearerData/post/', WearerDataPostView.as_view()),
+    path('sensorData/get/', SensorGetView.as_view()),
     path('wearerEvent/post/', WearerEventPostView.as_view())
 ]
-
-# 무식한 방법으로 정리해줌...==> 이거 유식한 방법으로 정리하는 식으로 바꿔주기: maybe router?
-urlpatterns += [path('sensorData/'+sensor, sensorView.as_view()) for sensor, sensorView in [
-    ("tempHumid/", TempHumidSensorGetView),
-    ("heartRate/", HeartSensorGetView),
-    ("sound/", SoundSensorGetView),
-    ("stepCount/", StepCountSensorGetView)
-]]
