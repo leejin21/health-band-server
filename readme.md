@@ -38,6 +38,9 @@ Successfully installed certifi-2020.6.20 chardet-3.0.4 defusedxml-0.6.0 django-a
 
 도 해주었다.
 
+++ 
+fcm-django-0.3.4 pyfcm-1.4.7
+
 ## database settings
 
 ```sql

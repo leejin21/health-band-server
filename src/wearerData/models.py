@@ -4,6 +4,11 @@ from users.models import CustomUser
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 
+import requests
+import json
+
+from .fcm_key import server_key
+
 
 class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
@@ -20,6 +25,15 @@ class WearerData(models.Model):
     stepCount = models.CharField(_('stepCount'), max_length=50, default='200')
 
 
+class HeatPreEvent(models.Model):
+    user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
+    nowDate = models.DateField(default=timezone.now().date(), null=True)
+    a_start = models.TimeField(default=timezone.now().time(), null=True)
+    b_start = models.TimeField(default=timezone.now().time(), null=True)
+    c_start = models.TimeField(default=timezone.now().time(), null=True)
+    eventType = models.CharField(default='N', max_length=1, null=True)
+
+
 class WearerEvent(models.Model):
     # 착용자 이벤트 관련 모델, 푸시알림 관련
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
@@ -29,8 +43,60 @@ class WearerEvent(models.Model):
         _('nowTime'), default=timezone.now().time(), null=True)
     # 낙상이벤트
     fallEvent = models.BooleanField(default=False, null=True)
-    # 부정맥이벤트
+    # 부정맥이벤트: 장고로 그냥 구현해버리기.
     heartEvent = models.BooleanField(default=False, null=True)
+    # 더위 먹는 이벤트 관련도 구현해 주기.
+    heatIllEvent = models.CharField(default='N', max_length=1, null=True)
+
+    def save(self, *args, **kwargs):
+
+        if self.user.user_type == "W":
+            # ids = [self.user.wearee.all()[i].protector.fcm_token for i in range(
+            #     len(self.user.wearee.all()))] + [self.user.fcm_token]
+            ids = [self.user.fcm_token]
+            # print(ids)
+            if self.fallEvent == True:
+                title = "낙상 사고 발생"
+                body = self.user.name + "님의 디바이스에서 낙상을 감지했습니다."
+                print(ids, title, body)
+                self.send_fcm_notification(ids, title, body)
+            elif self.heartEvent == True:
+                title = "부정맥 발생"
+                body = self.user.name + "님의 디바이스에서 부정맥을 감지했습니다."
+                print(ids, title, body)
+                self.send_fcm_notification(ids, title, body)
+            elif self.heatIllEvent != "N":
+                # TODO 여기서 heatIllEvent 유형에 따라 알림 다르게 하는 코드 적어주기
+                title = "일사병 위험"
+                body = self.user.name + "님의 디바이스에서 일사병 위험을 감지했습니다."
+
+        super(WearerEvent, self).save(*args, **kwargs)
+
+    def send_fcm_notification(self, ids, title, body):
+        # TODO 여기서 for문으로 여러 디바이스에 한번씩 보내거나 or python으로 여러 디바이스에게 한꺼번에 보내는 방법 찾아서 코드 짜기
+        # fcm 푸시 메세지 요청 주소
+        url = "https://fcm.googleapis.com/fcm/send"
+        # 인증 정보(서버 키)를 헤더에 담아 전달
+        headers = {
+            'Authorization': 'key= ' + server_key(),
+            'Content-Type': 'application/json; UTF-8',
+        }
+
+        # 보낼 내용과 대상을 지정
+        # ids 존재 안하면 에러 발생하게 하기.
+        for id in ids:
+            content = {
+                'to': id,
+                'data': {
+                    'title': title,
+                    'message': body
+                }
+            }
+
+            # json 파싱 후 requests 모듈로 FCM 서버에 요청
+            response = requests.post(
+                url, data=json.dumps(content), headers=headers)
+            print("Status Code:", response.status_code)
 
 
 class WearerStats(models.Model):
@@ -69,5 +135,5 @@ stepCount: vibrate
 '''
 나와야 하는 값
 (평균)
-20 50 30 
+20 50 30
 '''

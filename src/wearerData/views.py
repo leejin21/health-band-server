@@ -9,7 +9,7 @@ from rest_framework.settings import api_settings
 from rest_framework import status
 from rest_framework.response import Response
 
-from .models import WearerData, WearerEvent, WearerStats
+from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent
 from .serializers import WearerDataSerializer, WearerEventSerializer
 from users.models import CustomUser
 
@@ -50,6 +50,7 @@ class WearerDataPostView(CreateAPIView):
         response.data.clear()
         response.data.update(update_data)
         removeStatsNData(self.request.user)
+        self.check_event(serializer.data)
         return response
 
     def perform_create(self, serializer):
@@ -57,6 +58,105 @@ class WearerDataPostView(CreateAPIView):
         Overrided method. saves user as self.request.user to the serializer.
         '''
         serializer.save(user=self.request.user)
+
+    def check_event(self, sensorData):
+        '''
+        EXPLANATION
+        메모이제이션: pre_event에다가 미리 저장해두고 a_start, b_start, c_start 등으로 무슨 이벤트가 얼마나 지속되었는 지 확인해서 이벤트 발생 확인하면 이벤트 데이터 save
+
+        '''
+        # 열지수 계산
+        heatIndex = self.calHeatIndex(
+            int(sensorData['temp']), int(sensorData['humid']))
+
+        # 열지수 유형 분류
+        eventType = self.getHeatPhase(heatIndex)
+
+        # preEvent 저장
+        if eventType == "N" or len(HeatPreEvent.objects.filter(user=self.request.user)) == 0:
+            HeatPreEvent.objects.create(
+                user=self.request.user, eventType=eventType)
+
+        else:
+            before = HeatPreEvent.objects.filter(
+                user=self.request.user).latest('id')
+
+            if before.eventType == 'N':
+                HeatPreEvent.objects.create(
+                    user=self.request.user, eventType=eventType)
+
+            elif before.eventType == eventType:
+                current = HeatPreEvent.objects.create(
+                    user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, eventType=eventType)
+                # 이벤트 detect
+                self.detectHeatEvent(current)
+
+            else:
+                if before.eventType < eventType:
+
+                    if before.eventType == "A" and eventType == "B":
+                        HeatPreEvent.objects.create(
+                            user=self.request.user, a_start=before.a_start, c_start=before.c_start, eventType=eventType)
+
+                    elif before.eventType == "B" and eventType == "C":
+                        HeatPreEvent.objects.create(
+                            user=self.request.user, a_start=before.a_start, b_start=before.b_start, eventType=eventType)
+
+                    elif before.eventType == "A" and eventType == "C":
+                        # A에서 바로 C로 넘어가도 C는 B 유형에 속하기 떄문에 (A>B>C, 여기서 >는 집합에 속한다는 의미)
+                        HeatPreEvent.objects.create(
+                            user=self.request.user, a_start=before.a_start, eventType=eventType)
+
+                else:
+                    HeatPreEvent.objects.create(
+                        user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, eventType=eventType)
+
+    def calHeatIndex(self, temp, humid):
+        temp = 32 + (9/5 + temp)
+        heatIndex = (-42.379 + (2.04901523 * temp) + (10.14333127 * humid) - (0.22475541 * temp * humid) - (0.00683770 * humid * humid) - (0.05481717 *
+                                                                                                                                           humid * humid) + (0.00122874 * temp * temp * humid) + (0.00085282 * temp * humid * humid) - (0.00000199 * temp * temp * humid * humid))
+        return (heatIndex - 32) / 1.8
+
+    def getHeatPhase(self, heatIndex):
+        if heatIndex >= 32:
+            # 주의
+            return "A"
+        if heatIndex >= 41:
+            # 위험
+            return "B"
+        if heatIndex >= 54:
+            # 매우위험
+            return "C"
+        return "N"
+
+    def detectHeatEvent(self, current):
+        '''
+        EXPLANATION
+        이벤트가 있는 지 확인하고 없으면 지나가기, 있으면 WearerEvent.save()
+        '''
+
+        danger_time = {'A': timedelta(hours=2), 'B': timedelta(
+            hours=1), 'c': timedelta(minutes=30)}
+        a_start, b_start, c_start = current.a_start, current.b_start, current.c_start
+
+        # 모든 경우에
+        if datetime.now().time() - a_start > danger_time['A']:
+            event = WearerEvent(user=self.request.user, heatIllEvent='A')
+
+        if current.eventType == "B" or current.eventType == "C":
+            if datetime.now().time() - b_start > danger_time['B']:
+                event = WearerEvent(user=self.request.user, heatIllEvent='B')
+
+        if current.eventType == "C":
+            if datetime.now().time() - c_start > danger_time['C']:
+                event = WearerEvent(user=self.request.user, heatIllEvent='C')
+
+        # 가장 위험한 경우만 event save해서 push alarm
+        try:
+            event.save()
+            return
+        except:
+            return
 
 
 class SensorGetView(ListAPIView):
@@ -75,7 +175,7 @@ class SensorGetView(ListAPIView):
     INPUT
     as get param, needs
     1. wearerID: wearer_username
-    2. sensorName: which_sensor
+    2. sensorName: which_sensor(choices: 'tempHumid', 'sound', 'heartRate', 'stepCount')
 
     OUTPUT
     type=json, if no wearerData posted on that day, -1
@@ -207,7 +307,7 @@ class SensorGetView(ListAPIView):
             "min": minval,
         }
 
-        if no certain data which contains date and sensor value, 
+        if no certain data which contains date and sensor value,
         then return d = {"avg": -1, "min": -1, "max": -1}
         '''
         qs = WearerStats.objects.filter(user=self.wearer, nowDate=date)
@@ -247,6 +347,8 @@ class SensorGetView(ListAPIView):
         minV = 10000
         maxV = -10000
         if sensorName != "stepCount":
+            if len(sensorDataList) == 0:
+                return {'avg': -1, 'max': -1, 'min': -1}
             statValues = dict()
             tot = cnt = 0
 
@@ -264,6 +366,8 @@ class SensorGetView(ListAPIView):
             statValues['max'] = maxV
             statValues['min'] = minV
         else:
+            if len(sensorDataList) == 0:
+                return -1
             statValues = int(sensorDataList[len(sensorDataList)-1][sensorName])
 
         return statValues
@@ -318,9 +422,9 @@ class WearerEventPostView(CreateAPIView):
         # SECTION original method
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        print("done is_valid")
+
         self.perform_create(serializer)
-        print("done perform_create")
+
         headers = self.get_success_headers(serializer.data)
 
         response = Response(
@@ -341,7 +445,7 @@ class WearerEventPostView(CreateAPIView):
         '''
         Overrided method. saves user as self.request.user to the serializer.
         '''
-        print(self.request.user)
+
         serializer.save(user=self.request.user)
 
 
@@ -381,8 +485,11 @@ def removeStatsNData(wearer):
 
     fillStats(wearer, lastStatsDate, lastDataDate)
 
-    # SECTION 2: 7일 이전 wearerData는 삭제하기
+    # SECTION 2-1: 7일 이전 wearerData는 삭제하기
     WearerData.objects.filter(user=wearer, nowDate__lte=weekAgo).delete()
+
+    # SECTION 2-2: 1일 이전 heartPreEvent는 삭제하기
+    HeatPreEvent.objects.filter(user=wearer, nowDate__lt=today).delete()
 
     # # SECTION 3: 1년 이전 stats 삭제
     WearerStats.objects.filter(user=wearer, nowDate__lte=yearAgo).delete()

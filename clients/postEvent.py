@@ -5,7 +5,7 @@ import tokenEx
 
 
 def client():
-    headers = {"Authorization": tokenEx.token_h()}
+    headers = {"Authorization": tokenEx.token_h("w2")}
 
     # wearerData/post
 

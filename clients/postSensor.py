@@ -5,23 +5,23 @@ import tokenEx
 
 
 def client():
-    headers = {"Authorization": tokenEx.token_h()}
+    headers = {"Authorization": tokenEx.token_h("w2")}
 
     # wearerData/post
     data1 = {
-        "temp": "10",
-        "humid": "50",
-        "heartRate": "100",
-        "sound": "20",
-        "stepCount": "1000",
+        "temp": "17",
+        "humid": "53",
+        "heartRate": "47",
+        "sound": "13",
+        "stepCount": "2000",
     }
 
     data2 = {
-        "temp": "30",
-        "humid": "70",
-        "heartRate": "80",
-        "sound": "40",
-        "stepCount": "2000",
+        "temp": "24",
+        "humid": "69",
+        "heartRate": "89",
+        "sound": "95",
+        "stepCount": "3642",
     }
 
     response = requests.post(

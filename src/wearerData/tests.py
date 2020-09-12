@@ -33,67 +33,62 @@ u.dataRemovedDate = datetime.now().date() - timedelta(days=1)
 u.save()
 print(u.dataRemovedDate)
 
+temp = '''
+18, 27
+18, 26
+17, 24
+16, 25
+15, 24
+17, 24
+17, 24
 '''
-2020-08-27
-50
-40
-200
-20
-60
 
-2020-08-28
-50
-40
-200
-20
-60
-
-2020-08-29
-50
-40
-200
-20
-60
-
-2020-08-30
-[50, 70, 90]
-[30, 35, 40]
-[200, 250, 300]
-20
-60
-
-2020-08-31
-50
-40
-200
-20
-60
-
-2020-09-01
-50
-40
-200
-20
-60
-
-2020-09-02
-0
-3500
-1
-400 40 100
-2
-270 10 100
-3
-240 10 100
-4
-377.5 37.5 100.0
-
-2020-09-03
-80
-40
-2000
-30
-70
-
-
+humid = '''
+40, 60
+42, 62
+43, 58
+50, 70
+52, 72
+47, 60
+53, 69
 '''
+
+heartRate = '''
+50,	90
+52,	87
+49,	85
+55,	78
+53,	92
+55,	80
+47,	89
+'''
+
+
+sound = '''
+5, 100
+1, 80
+10, 70
+20, 62
+15, 68
+17, 84
+13, 95
+'''
+
+step = '''
+1211
+587
+2982
+2225
+4521
+5287
+3642
+'''
+temp = [i.split(", ") for i in temp.split("\n")[1:-1]]
+heartRate = [i.split(",\t") for i in heartRate.split("\n")[1:-1]]
+humid = [i.split(", ") for i in humid.split("\n")[1:-1]]
+sound = [i.split(", ") for i in sound.split("\n")[1:-1]]
+
+temp = [[int(i) for i in comp] for comp in temp]
+heartRate = [[int(i) for i in comp] for comp in heartRate]
+humid = [[int(i) for i in comp] for comp in humid]
+sound = [[int(i) for i in comp] for comp in sound]
