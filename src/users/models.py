@@ -1,3 +1,5 @@
+
+
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.validators import UnicodeUsernameValidator
@@ -5,7 +7,7 @@ from django.utils.translation import ugettext_lazy as _
 
 from .managers import CustomUserManager
 from random import randint
-from datetime import datetime
+from django.utils import timezone
 # User model customize
 # 이름, 타입, 전화번호 추가해야 함.
 # username, name, user_type, phone_number
@@ -39,7 +41,7 @@ class CustomUser(AbstractUser):
     fcm_token = models.CharField(
         _('fcm token'), max_length=300, default="", null=True)
     dataRemovedDate = models.DateField(
-        _('data removed date'), default=datetime.now().date())
+        _('data removed date'), auto_now_add=True)
     # phone_num = models
 
     REQUIRED_FIELDS = ['name', 'confirmpw', 'phone_number', 'user_type', ]

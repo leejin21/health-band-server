@@ -6,7 +6,7 @@ import tokenEx
 
 
 def client():
-    headers = {"Authorization": tokenEx.token_h()}
+    headers = {"Authorization": tokenEx.token_h('w3')}
 
     # login
     credentials = {

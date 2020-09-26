@@ -9,7 +9,7 @@ getSensorUrl = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000
 def clientGetSensor(sensorUrl, name):
     headers = {"Authorization": tokenEx.token_h("p1")}
 
-    params = {"wearerID": tokenEx.wearerId("w2"), "sensorName": name}
+    params = {"wearerID": tokenEx.wearerId("w3"), "sensorName": name}
     response = requests.get(
         sensorUrl, headers=headers, params=params)
     print("Status Code:", response.status_code)
@@ -19,5 +19,5 @@ def clientGetSensor(sensorUrl, name):
 
 if __name__ == "__main__":
     sensorUrl = getSensorUrl
-    name = "stepCount"
+    name = "tempHumid"
     clientGetSensor(sensorUrl, name)

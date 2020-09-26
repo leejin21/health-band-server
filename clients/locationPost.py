@@ -4,19 +4,18 @@ import json
 import tokenEx
 
 
-def client():
+def client_post():
     headers = {"Authorization": tokenEx.token_h("w2")}
 
     # wearerData/post
 
     data2 = {
-        "fallEvent": "T",
-        "heartEvent": "F",
-        "heatIllEvent": "N",
+        "latitude": "latitude0001",
+        "longitude": "longitude0001",
     }
 
     response = requests.post(
-        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerEvent/post/", headers=headers, data=data2)
+        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerLocation/post/", headers=headers, data=data2)
 
     print("Status Code:", response.status_code)
     response_data = response.json()
@@ -24,4 +23,4 @@ def client():
 
 
 if __name__ == "__main__":
-    client()
+    client_post()

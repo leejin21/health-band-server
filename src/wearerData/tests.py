@@ -1,7 +1,7 @@
 from django.test import TestCase
 
 # Create your tests here.
-from users.models import CustomUser
+from users.models import CustomUser, LinkedUser
 from datetime import datetime, timedelta
 from wearerData.models import WearerData
 
@@ -32,6 +32,9 @@ for sensor in [st, hr, so, te, hu]:
 u.dataRemovedDate = datetime.now().date() - timedelta(days=1)
 u.save()
 print(u.dataRemovedDate)
+
+
+# sensor data post
 
 temp = '''
 18, 27
@@ -87,8 +90,25 @@ temp = [i.split(", ") for i in temp.split("\n")[1:-1]]
 heartRate = [i.split(",\t") for i in heartRate.split("\n")[1:-1]]
 humid = [i.split(", ") for i in humid.split("\n")[1:-1]]
 sound = [i.split(", ") for i in sound.split("\n")[1:-1]]
+step = [int(i) for i in step.split("\n")[1:-1]]
 
 temp = [[int(i) for i in comp] for comp in temp]
 heartRate = [[int(i) for i in comp] for comp in heartRate]
 humid = [[int(i) for i in comp] for comp in humid]
 sound = [[int(i) for i in comp] for comp in sound]
+
+temp = [[18, 27], [18, 26], [17, 24], [16, 25], [15, 24], [17, 24], [17, 24]]
+heartRate = [[50, 90], [52, 87], [49, 85],
+             [55, 78], [53, 92], [55, 80], [47, 89]]
+humid = [[40, 60], [42, 62], [43, 58], [50, 70], [52, 72], [47, 60], [53, 69]]
+sound = [[5, 100], [1, 80], [10, 70], [20, 62], [15, 68], [17, 84], [13, 95]]
+step = [1211, 587, 2982, 2225, 4521, 5287, 3642]
+
+weekdays = [datetime.now().date() - timedelta(days=i)
+            for i in range(3, -1, -1)]
+w2 = CustomUser.objects.get(username="w2@gmail.com")
+
+for i in range(len(weekdays)):
+    for j in range(2):
+        WearerData.objects.create(
+            user=w2, nowDate=weekdays[i], temp=temp[i][j], humid=humid[i][j], heartRate=heartRate[i][j], sound=sound[i][j], stepCount=step[i])

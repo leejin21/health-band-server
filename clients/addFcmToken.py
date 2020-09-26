@@ -6,12 +6,12 @@ import tokenEx
 
 
 def client():
-    headers = {"Authorization": tokenEx.token_h()}
+    headers = {"Authorization": tokenEx.token_h('abc')}
 
     # login
     credentials = {
-        "username": "w3@gmail.com",
-        "fcm_token": "hellp"
+        "username": "abc@gmail.com",
+        "fcm_token": "abc-token"
     }
 
     response = requests.put(

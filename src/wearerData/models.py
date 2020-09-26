@@ -4,6 +4,7 @@ from users.models import CustomUser
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
 
+
 import requests
 import json
 
@@ -12,11 +13,10 @@ from .fcm_key import server_key
 
 class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
-    # TODO default를 KR 시간으로 맞춰야 함
     nowDate = models.DateField(
-        _('nowTime'), default=timezone.now().date(), null=True)
+        _('nowTime'), auto_now_add=True, null=True)
     nowTime = models.TimeField(
-        _('nowTime'), default=timezone.now().time(), null=True)
+        _('nowTime'), auto_now_add=True, null=True)
     temp = models.CharField(_('temp_sensor'), max_length=50, default="20")
     humid = models.CharField(_('humid_sensor'), max_length=50, default='50')
 
@@ -25,12 +25,28 @@ class WearerData(models.Model):
     stepCount = models.CharField(_('stepCount'), max_length=50, default='200')
 
 
+class WearerMeter(models.Model):
+    user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
+    nowDate = models.DateField(_('nowDate'), auto_now_add=True)
+    meter = models.CharField(_('meter'), max_length=20)
+
+
+class WearerLocation(models.Model):
+    user = models.ForeignKey(
+        to=CustomUser, on_delete=models.CASCADE, primary_key=True)
+    nowDT = models.DateTimeField(auto_now=True)
+    latitude = models.CharField(max_length=50)
+    longitude = models.CharField(max_length=50)
+
+
 class HeatPreEvent(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
-    nowDate = models.DateField(default=timezone.now().date(), null=True)
-    a_start = models.TimeField(default=timezone.now().time(), null=True)
-    b_start = models.TimeField(default=timezone.now().time(), null=True)
-    c_start = models.TimeField(default=timezone.now().time(), null=True)
+    nowDate = models.DateField(auto_now_add=True)
+    nowTime = models.TimeField(auto_now_add=True)
+    a_start = models.DateTimeField(default=timezone.now)
+    b_start = models.DateTimeField(default=timezone.now)
+    c_start = models.DateTimeField(default=timezone.now)
+    alarmedDT = models.DateTimeField(default=timezone.now)
     eventType = models.CharField(default='N', max_length=1, null=True)
 
 
@@ -38,9 +54,9 @@ class WearerEvent(models.Model):
     # 착용자 이벤트 관련 모델, 푸시알림 관련
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(
-        _('nowTime'), default=timezone.now().date(), null=True)
+        _('nowTime'), auto_now_add=True)
     nowTime = models.TimeField(
-        _('nowTime'), default=timezone.now().time(), null=True)
+        _('nowTime'), auto_now_add=True)
     # 낙상이벤트
     fallEvent = models.BooleanField(default=False, null=True)
     # 부정맥이벤트: 장고로 그냥 구현해버리기.
@@ -51,9 +67,9 @@ class WearerEvent(models.Model):
     def save(self, *args, **kwargs):
 
         if self.user.user_type == "W":
-            # ids = [self.user.wearee.all()[i].protector.fcm_token for i in range(
-            #     len(self.user.wearee.all()))] + [self.user.fcm_token]
-            ids = [self.user.fcm_token]
+            ids = [self.user.wearee.all()[i].protector.fcm_token for i in range(
+                len(self.user.wearee.all()))] + [self.user.fcm_token]
+            # ids = [self.user.fcm_token]
             # print(ids)
             if self.fallEvent == True:
                 title = "낙상 사고 발생"
@@ -67,8 +83,16 @@ class WearerEvent(models.Model):
                 self.send_fcm_notification(ids, title, body)
             elif self.heatIllEvent != "N":
                 # TODO 여기서 heatIllEvent 유형에 따라 알림 다르게 하는 코드 적어주기
-                title = "일사병 위험"
-                body = self.user.name + "님의 디바이스에서 일사병 위험을 감지했습니다."
+                if self.heatIllEvent == "A":
+                    title = "열사병 위험"
+                elif self.heatIllEvent == "B":
+                    title = "일사병 위험"
+                elif self.heatIllEvent == "C":
+                    title = "열사병, 일사병 매우 위험"
+
+                body = self.user.name + "님의 디바이스에서 "+title+"을 감지했습니다."
+                print(ids, title, body)
+                self.send_fcm_notification(ids, title, body)
 
         super(WearerEvent, self).save(*args, **kwargs)
 
@@ -94,32 +118,37 @@ class WearerEvent(models.Model):
             }
 
             # json 파싱 후 requests 모듈로 FCM 서버에 요청
+
+            # *찐*
             response = requests.post(
                 url, data=json.dumps(content), headers=headers)
             print("Status Code:", response.status_code)
+
+            # *가*
+            # print(content)
 
 
 class WearerStats(models.Model):
     # 착용자 데이터 중 당일로부터 7일 전까지의 데이터는 wearerData에서 삭제, 당일 제외한 모든 데이터는 wearerStats에 통계값과 날짜만 저장.
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(
-        _('now date'), default=timezone.now().date(), null=True)
+        _('now date'), auto_now_add=True, null=True)
 
-    heartRate_max = models.IntegerField(_('day heart rate max'))
-    heartRate_min = models.IntegerField(_('day heart rate min'))
+    heartRate_max = models.FloatField(_('day heart rate max'))
+    heartRate_min = models.FloatField(_('day heart rate min'))
     heartRate_avg = models.FloatField(_('day heart rate avg'))
 
-    sound_max = models.IntegerField(_('day sound max'))
+    sound_max = models.FloatField(_('day sound max'))
     sound_avg = models.FloatField(_('day sound avg'))
-    sound_min = models.IntegerField(_('day sound min'))
+    sound_min = models.FloatField(_('day sound min'))
 
-    temp_max = models.IntegerField(_('temp rate max'))
+    temp_max = models.FloatField(_('temp rate max'))
     temp_avg = models.FloatField(_('temp rate avg'))
-    temp_min = models.IntegerField(_('temp rate min'))
+    temp_min = models.FloatField(_('temp rate min'))
 
-    humid_max = models.IntegerField(_('humid rate max'))
+    humid_max = models.FloatField(_('humid rate max'))
     humid_avg = models.FloatField(_('humid rate avg'))
-    humid_min = models.IntegerField(_('humid rate min'))
+    humid_min = models.FloatField(_('humid rate min'))
 
     stepCount = models.IntegerField(_('day step count'))
 

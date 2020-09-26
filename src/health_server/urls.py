@@ -21,19 +21,21 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomLoginView, LinkedUserPostView, UserFcmTokenPostView
-from wearerData.views import WearerDataPostView, WearerEventPostView, SensorGetView
+from wearerData.views import WearerDataPostView, WearerEventPostView, SensorGetView, WearerLocationPostView, WearerLocationGetView
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('rest-auth/', include('rest_auth.urls')),
-    path('rest-auth/registration', include('rest_auth.registration.urls')),
+    path('rest-auth/registration/', include('rest_auth.registration.urls')),
     url(r'^account/', include('allauth.urls')),
     url(r'custom/login/', CustomLoginView.as_view(), name='my_custom_login'),
     # path('', include(router.urls)),
     path('user/changeFcmToken/', UserFcmTokenPostView.as_view()),
     path('linkedUser/post/', LinkedUserPostView.as_view()),
     path('wearerData/post/', WearerDataPostView.as_view()),
+    path('wearerLocation/post/', WearerLocationPostView.as_view()),
+    path('wearerLocation/get/', WearerLocationGetView.as_view()),
     path('sensorData/get/', SensorGetView.as_view()),
     path('wearerEvent/post/', WearerEventPostView.as_view())
 ]

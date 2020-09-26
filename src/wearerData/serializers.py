@@ -1,6 +1,6 @@
 
 from rest_framework import serializers, exceptions
-from .models import WearerData, WearerEvent
+from .models import WearerData, WearerEvent, WearerLocation
 
 from django.utils.translation import ugettext_lazy as _
 
@@ -28,11 +28,21 @@ class WearerDataSerializer(serializers.Serializer):
         return WearerData.objects.create(**validated_data)
 
 
+class WearerLocationSerializer(serializers.Serializer):
+
+    latitude = serializers.CharField(max_length=50)
+    longitude = serializers.CharField(max_length=50)
+
+    def create(self, validated_data):
+        return WearerLocation.objects.create(**validated_data)
+
+
 class WearerEventSerializer(serializers.Serializer):
     nowDate = serializers.DateField(read_only=True)
     nowTime = serializers.TimeField(read_only=True)
     fallEvent = serializers.CharField(max_length=1)
     heartEvent = serializers.CharField(max_length=1)
+    heatIllEvent = serializers.CharField(max_length=1)
 
     def validate_fallEvent(self, value):
         if value.upper() == "T":
@@ -53,6 +63,9 @@ class WearerEventSerializer(serializers.Serializer):
         else:
             raise serializers.ValidationError(
                 _('heartRate value should be T,t or F,f'))
+
+    def validate_heatIllEvent(self, value):
+        return "N"
 
     def create(self, validated_data):
         return WearerEvent.objects.create(**validated_data)

@@ -9,11 +9,30 @@ from rest_framework.settings import api_settings
 from rest_framework import status
 from rest_framework.response import Response
 
-from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent
-from .serializers import WearerDataSerializer, WearerEventSerializer
+from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent, WearerLocation
+from .serializers import WearerDataSerializer, WearerEventSerializer, WearerLocationSerializer
 from users.models import CustomUser
 
 from datetime import datetime, timedelta
+from django.utils import timezone
+
+# *찐* 전역변수: 차례로 2h, 1h, 30m
+A_SEC = 2 * 60 * 60
+B_SEC = 1 * 60 * 60
+C_SEC = 30 * 60
+PUSH_DELAY_SEC = 20 * 60
+A_TEM = 32
+B_TEM = 41
+C_TEM = 54
+
+# *가짜* 전역변수: 차례로 60s, 30s, 10s
+# A_SEC = 30
+# B_SEC = 20
+# C_SEC = 10
+# PUSH_DELAY_SEC = 5
+# A_TEM = 30
+# B_TEM = 25
+# C_TEM = 20
 
 
 class WearerDataPostView(CreateAPIView):
@@ -50,7 +69,8 @@ class WearerDataPostView(CreateAPIView):
         response.data.clear()
         response.data.update(update_data)
         removeStatsNData(self.request.user)
-        self.check_event(serializer.data)
+        self.check_heatIllevent(serializer.data)
+        print(serializer.data)
         return response
 
     def perform_create(self, serializer):
@@ -59,18 +79,18 @@ class WearerDataPostView(CreateAPIView):
         '''
         serializer.save(user=self.request.user)
 
-    def check_event(self, sensorData):
+    def check_heatIllevent(self, sensorData):
         '''
         EXPLANATION
         메모이제이션: pre_event에다가 미리 저장해두고 a_start, b_start, c_start 등으로 무슨 이벤트가 얼마나 지속되었는 지 확인해서 이벤트 발생 확인하면 이벤트 데이터 save
-
         '''
         # 열지수 계산
         heatIndex = self.calHeatIndex(
-            int(sensorData['temp']), int(sensorData['humid']))
+            float(sensorData['temp']), float(sensorData['humid']))
 
         # 열지수 유형 분류
         eventType = self.getHeatPhase(heatIndex)
+        print(eventType)
 
         # preEvent 저장
         if eventType == "N" or len(HeatPreEvent.objects.filter(user=self.request.user)) == 0:
@@ -81,82 +101,182 @@ class WearerDataPostView(CreateAPIView):
             before = HeatPreEvent.objects.filter(
                 user=self.request.user).latest('id')
 
-            if before.eventType == 'N':
+            if before.eventType == 'N' or datetime.now() - datetime.combine(before.nowDate, before.nowTime) > timedelta(minutes=10):
+                # 직전 preEvent 인스턴스가 N이거나 등록된 시간에서부터 10분 이상 지났으면
                 HeatPreEvent.objects.create(
                     user=self.request.user, eventType=eventType)
 
             elif before.eventType == eventType:
                 current = HeatPreEvent.objects.create(
-                    user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, eventType=eventType)
+                    user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, alarmedDT=before.alarmedDT, eventType=eventType)
                 # 이벤트 detect
-                self.detectHeatEvent(current)
+                if datetime.combine(current.nowDate, current.nowTime) - before.alarmedDT > timedelta(seconds=PUSH_DELAY_SEC):
+                    # 이전 이벤트가 언제였는 지 확인해서 20분 안에 알람이 울렸으면, 알람 안 울리게 하기.
+                    self.detectHeatEvent(current)
 
             else:
                 if before.eventType < eventType:
 
                     if before.eventType == "A" and eventType == "B":
                         HeatPreEvent.objects.create(
-                            user=self.request.user, a_start=before.a_start, c_start=before.c_start, eventType=eventType)
+                            user=self.request.user, a_start=before.a_start, c_start=before.c_start, alarmedDT=before.alarmedDT, eventType=eventType)
 
                     elif before.eventType == "B" and eventType == "C":
                         HeatPreEvent.objects.create(
-                            user=self.request.user, a_start=before.a_start, b_start=before.b_start, eventType=eventType)
+                            user=self.request.user, a_start=before.a_start, b_start=before.b_start, alarmedDT=before.alarmedDT, eventType=eventType)
 
                     elif before.eventType == "A" and eventType == "C":
                         # A에서 바로 C로 넘어가도 C는 B 유형에 속하기 떄문에 (A>B>C, 여기서 >는 집합에 속한다는 의미)
                         HeatPreEvent.objects.create(
-                            user=self.request.user, a_start=before.a_start, eventType=eventType)
+                            user=self.request.user, a_start=before.a_start, alarmedDT=before.alarmedDT, eventType=eventType)
 
                 else:
                     HeatPreEvent.objects.create(
-                        user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, eventType=eventType)
+                        user=self.request.user, a_start=before.a_start, b_start=before.b_start, c_start=before.c_start, alarmedDT=before.alarmedDT, eventType=eventType)
 
     def calHeatIndex(self, temp, humid):
-        temp = 32 + (9/5 + temp)
-        heatIndex = (-42.379 + (2.04901523 * temp) + (10.14333127 * humid) - (0.22475541 * temp * humid) - (0.00683770 * humid * humid) - (0.05481717 *
-                                                                                                                                           humid * humid) + (0.00122874 * temp * temp * humid) + (0.00085282 * temp * humid * humid) - (0.00000199 * temp * temp * humid * humid))
+        temp = temp * 9/5 + 32
+        heatIndex = -42.379 + 2.04901523 * temp + 10.14333127 * humid - 0.22475541 * temp * humid - 0.00683770 * temp * temp - 0.05481717 * humid * humid + 0.00122874 * temp * temp * humid + 0.00085282 * \
+            temp * humid * humid - 0.00000199 * temp * temp * humid * humid
         return (heatIndex - 32) / 1.8
 
     def getHeatPhase(self, heatIndex):
-        if heatIndex >= 32:
+        if heatIndex >= C_TEM:
             # 주의
-            return "A"
-        if heatIndex >= 41:
+            return "C"
+        if heatIndex >= B_TEM:
             # 위험
             return "B"
-        if heatIndex >= 54:
+        if heatIndex >= A_TEM:
             # 매우위험
-            return "C"
+            return "A"
         return "N"
 
     def detectHeatEvent(self, current):
         '''
         EXPLANATION
         이벤트가 있는 지 확인하고 없으면 지나가기, 있으면 WearerEvent.save()
+
         '''
 
-        danger_time = {'A': timedelta(hours=2), 'B': timedelta(
-            hours=1), 'c': timedelta(minutes=30)}
+        danger_time = {'A': timedelta(seconds=A_SEC), 'B': timedelta(
+            seconds=B_SEC), 'C': timedelta(seconds=C_SEC)}
         a_start, b_start, c_start = current.a_start, current.b_start, current.c_start
 
         # 모든 경우에
-        if datetime.now().time() - a_start > danger_time['A']:
+        if datetime.now() - a_start > danger_time['A']:
             event = WearerEvent(user=self.request.user, heatIllEvent='A')
 
         if current.eventType == "B" or current.eventType == "C":
-            if datetime.now().time() - b_start > danger_time['B']:
+            if datetime.now() - b_start > danger_time['B']:
                 event = WearerEvent(user=self.request.user, heatIllEvent='B')
 
         if current.eventType == "C":
-            if datetime.now().time() - c_start > danger_time['C']:
+            if datetime.now() - c_start > danger_time['C']:
                 event = WearerEvent(user=self.request.user, heatIllEvent='C')
 
         # 가장 위험한 경우만 event save해서 push alarm
         try:
             event.save()
+            current.alarmedDT = datetime.now()
+            current.save()
+            print(current.nowDate, current.nowTime,
+                  current.a_start, current.b_start, current.c_start)
             return
         except:
             return
+
+
+class WearerLocationPostView(CreateAPIView):
+
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    queryset = WearerLocation.objects.all()
+    serializer_class = WearerLocationSerializer
+
+    def create(self, request, *args, **kwargs):
+        '''
+        Overrided method. added update_data which includes status: sucess.
+        '''
+        # SECTION original method
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        response = Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        # SECTION overrided code
+        # customizing the original_response.data
+        update_data = {
+            "data": serializer.data,
+            "status": "success"
+        }
+        response.data.clear()
+        response.data.update(update_data)
+
+        print(serializer.data)
+        return response
+
+    def perform_create(self, serializer):
+        '''
+        Overrided method. saves user as self.request.user to the serializer.
+        '''
+        loc_qs = self.queryset.filter(user=self.request.user)
+        if len(loc_qs) == 0:
+            serializer.save(user=self.request.user)
+        else:
+            location = loc_qs[0]
+            location.longitude = serializer.data['longitude']
+            location.latitude = serializer.data['latitude']
+            location.save()
+
+
+class WearerLocationGetView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    queryset = WearerLocation.objects.all()
+    serializer_class = WearerLocationSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+
+        if self.request.user.user_type == "P":
+            # protector가 요청하는 경우, wearer 확인하기
+            wearID = self.request.query_params.get('wearerID')
+            self.wearer = CustomUser.objects.get(username=wearID)
+            linkedUsers = self.request.user.protectee.filter(
+                wearer=self.wearer)
+            qs = self.queryset.filter(user=linkedUsers[0].wearer)
+            if len(linkedUsers) != 0 and len(qs) != 0:
+                instance = qs[0]
+                if instance.nowDT - datetime.now() > timedelta(minutes=10):
+                    raise ValueError("Wearer is currently not connected")
+            else:
+                raise ValueError(
+                    "The relationship is not registered in linkedUsers model or wearer's location does not exist")
+        else:
+            # wearer가 요청하는 경우
+            self.wearer = self.request.user
+            qs = self.queryset.filter(user=linkedUsers[0].wearer)
+            if len(qs) != 0:
+                instance = qs[0]
+            else:
+                raise ValueError("wearer's location does not exist")
+
+        serializer = self.get_serializer(instance)
+        response = Response(serializer.data)
+
+        update_data = {
+            "data": serializer.data,
+            "status": "success"
+        }
+        response.data.clear()
+        response.data.update(update_data)
+        return response
 
 
 class SensorGetView(ListAPIView):
@@ -203,7 +323,7 @@ class SensorGetView(ListAPIView):
             return self.get_paginated_response(serializer.data)
 
         # SECTION overrided code
-        print(self.request.user, self.request.query_params.get('wearerID'))
+        # print(self.request.user, self.request.query_params.get('wearerID'))
 
         if self.request.user.user_type == "P":
             # protector가 요청하는 경우, wearer 확인하기
@@ -353,7 +473,7 @@ class SensorGetView(ListAPIView):
             tot = cnt = 0
 
             for i in range(len(sensorDataList)):
-                cur_sens = int(sensorDataList[i][sensorName])
+                cur_sens = float(sensorDataList[i][sensorName])
                 tot += cur_sens
                 if minV > cur_sens:
                     minV = cur_sens
@@ -410,6 +530,10 @@ class SensorGetView(ListAPIView):
 
 
 class WearerEventPostView(CreateAPIView):
+    ''' 
+    EXPLANATION
+    낙상 이벤트(fall event) 감지
+    '''
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
     queryset = WearerEvent.objects.all()
@@ -453,7 +577,9 @@ def removeStatsNData(wearer):
     '''
     1.  lastStatsDate < lastDataDate일 때,
             그 사이 date에 대해 wearerData => stats로 추가
-    2.  7일 이전 wearerData는 삭제하기
+    2.  
+        (1) 7일 이전 wearerData는 삭제하기
+        (2) 2일 이전 heartPreEvent는 삭제하기
     3.  1년 이전 wearerStats 삭제
     '''
     today = datetime.now().date()
@@ -488,8 +614,9 @@ def removeStatsNData(wearer):
     # SECTION 2-1: 7일 이전 wearerData는 삭제하기
     WearerData.objects.filter(user=wearer, nowDate__lte=weekAgo).delete()
 
-    # SECTION 2-2: 1일 이전 heartPreEvent는 삭제하기
-    HeatPreEvent.objects.filter(user=wearer, nowDate__lt=today).delete()
+    # SECTION 2-2: 2일 이전 heartPreEvent는 삭제하기:
+    yesterday = today - timedelta(days=1)
+    HeatPreEvent.objects.filter(user=wearer, nowDate__lt=yesterday).delete()
 
     # # SECTION 3: 1년 이전 stats 삭제
     WearerStats.objects.filter(user=wearer, nowDate__lte=yearAgo).delete()
@@ -530,8 +657,8 @@ def saveStatDayValues(wearer, data_queryset):
 
     for data in data_queryset:
         cur_date = data.nowDate
-        sc_list = [(he_dict, int(data.heartRate)), (s_dict, int(data.sound)),
-                   (t_dict, int(data.temp)), (hu_dict, float(data.humid))]
+        sc_list = [(he_dict, float(data.heartRate)), (s_dict, float(data.sound)),
+                   (t_dict, float(data.temp)), (hu_dict, float(data.humid))]
         if cur_date != pre_date:
             # date가 달라지는 순간:
             # 저장

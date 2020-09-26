@@ -20,7 +20,7 @@ def send_fcm_notification():
     content = {
         'to': "efM6v-O0RXesFuP1Wr6PJ3:APA91bF5ekVigMlwRagsBg1FuDY8d_8aHq1FLA725XTxcWh1EqnlSk4hVmYLtCWbGU1OIVFrwx8EECaL08Ky1MGoRDccCFSPFbGFYHbg4vjCefrOFSNb_aPDkldEU5ZR_Tmp1vgPZjll",
         'data': {
-            'title': "gkgk",
+            'title': "낙상 감지",
             'message': "w2님의 디바이스에서 낙상을 감지했습니다."
         }
     }
