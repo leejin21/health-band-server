@@ -9,8 +9,8 @@ from rest_framework.settings import api_settings
 from rest_framework import status
 from rest_framework.response import Response
 
-from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent, WearerLocation
-from .serializers import WearerDataSerializer, WearerEventSerializer, WearerLocationSerializer
+from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent, WearerLocation, WearerMeter
+from .serializers import WearerDataSerializer, WearerEventSerializer, WearerLocationSerializer, WearerMeterSerializer
 from users.models import CustomUser
 
 from datetime import datetime, timedelta
@@ -33,6 +33,8 @@ C_TEM = 54
 # A_TEM = 30
 # B_TEM = 25
 # C_TEM = 20
+
+# TODO 대대적으로 공사하기: 중복되는 코드 함수 하나로 묶어서 처리하기
 
 
 class WearerDataPostView(CreateAPIView):
@@ -185,6 +187,111 @@ class WearerDataPostView(CreateAPIView):
             return
         except:
             return
+
+
+class WearerDataGetView(RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    queryset = WearerData.objects.all()
+    serializer_class = WearerDataSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+
+        if self.request.user.user_type == "P":
+            # protector가 요청하는 경우, wearer 확인하기
+            wearID = self.request.query_params.get('wearerID')
+            self.wearer = CustomUser.objects.get(username=wearID)
+            linkedUsers = self.request.user.protectee.filter(
+                wearer=self.wearer)
+            qs = self.queryset.filter(user=linkedUsers[0].wearer)
+            if len(linkedUsers) != 0 and len(qs) != 0:
+                instance = qs.last()
+                if datetime.combine(instance.nowDate, instance.nowTime) - datetime.now() > timedelta(minutes=10):
+                    raise ValueError("Wearer is currently not connected")
+            else:
+                raise ValueError(
+                    "The relationship is not registered in linkedUsers model or wearer's sensord data does not exist")
+        else:
+            # wearer가 요청하는 경우
+            self.wearer = self.request.user
+            qs = self.queryset.filter(user=linkedUsers[0].wearer)
+            if len(qs) != 0:
+                instance = qs.last()
+            else:
+                raise ValueError("Wearer's sensor data does not exist")
+
+        serializer = self.get_serializer(instance)
+        response = Response(serializer.data)
+
+        sensor_names = ["heartRate", "temp",
+                        "humid", "nowDate", "nowTime", "sound"]
+        data = dict()
+        for name in sensor_names:
+            data[name] = serializer.data[name]
+        data['meter'] = str(getSteps(self.wearer, datetime.now().date()))
+
+        update_data = {
+            "data": data,
+            "status": "success"
+        }
+        response.data.clear()
+        response.data.update(update_data)
+        return response
+
+
+class WearerMeterPostView(CreateAPIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [TokenAuthentication]
+
+    queryset = WearerMeter.objects.all()
+    serializer_class = WearerMeterSerializer
+
+    def create(self, request, *args, **kwargs):
+        '''
+        Overrided method. added update_data which includes status: sucess.
+        '''
+        # SECTION original method
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+
+        response = Response(
+            serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
+        # SECTION overrided code
+        # customizing the original_response.data
+        update_data = {
+            "data": serializer.data,
+            "status": "success"
+        }
+        response.data.clear()
+        response.data.update(update_data)
+
+        print(serializer.data)
+        return response
+
+    def perform_create(self, serializer):
+        '''
+        Overrided method.
+        if no data exists which self.request.user is the user or no data exists on today's date(&& user condition):
+            saves user as self.request.user to the serializer
+            create new instance
+
+        else:
+            updates the instance with the new data value
+        '''
+
+        if not self.queryset.filter(user=self.request.user).exists():
+            serializer.save(user=self.request.user)
+        elif self.queryset.filter(user=self.request.user).last().nowDT.date() != datetime.now().date:
+            serializer.save(user=self.request.user)
+        else:
+            instance = self.queryset.filter(user=self.request.user).last()
+            instance.meter = serializer.data['meter']
+            instance.save()
 
 
 class WearerLocationPostView(CreateAPIView):
@@ -453,7 +560,7 @@ class SensorGetView(ListAPIView):
 
         INPUT
         sensorDataList: list of OrderedDict
-        sensorName can be temp, humid, sound, heartRate, stepCount
+        sensorName can be temp, humid, sound, heartRate
 
         TIME
         time complexity: O(n), where n = len(sensorDataList)
@@ -486,9 +593,8 @@ class SensorGetView(ListAPIView):
             statValues['max'] = maxV
             statValues['min'] = minV
         else:
-            if len(sensorDataList) == 0:
-                return -1
-            statValues = int(sensorDataList[len(sensorDataList)-1][sensorName])
+
+            statValues = getSteps(self.wearer, datetime.now().date())
 
         return statValues
 
@@ -530,7 +636,7 @@ class SensorGetView(ListAPIView):
 
 
 class WearerEventPostView(CreateAPIView):
-    ''' 
+    '''
     EXPLANATION
     낙상 이벤트(fall event) 감지
     '''
@@ -577,13 +683,13 @@ def removeStatsNData(wearer):
     '''
     1.  lastStatsDate < lastDataDate일 때,
             그 사이 date에 대해 wearerData => stats로 추가
-    2.  
+    2.
         (1) 7일 이전 wearerData는 삭제하기
         (2) 2일 이전 heartPreEvent는 삭제하기
     3.  1년 이전 wearerStats 삭제
     '''
     today = datetime.now().date()
-    if wearer.dataRemovedDate == today or len(WearerData.objects.filter(nowDate__lt=today)) == 0:
+    if wearer.dataRemovedDate == today or len(WearerData.objects.filter(user=wearer, nowDate__lt=today)) == 0:
         # 1. 이미 오늘 removeStatsNData()를 call했거나(실행시간 줄이기 위해 session 사용)
         # 2. 막 회원가입해서 예전 데이터가 없을 경우
         return
@@ -611,8 +717,9 @@ def removeStatsNData(wearer):
 
     fillStats(wearer, lastStatsDate, lastDataDate)
 
-    # SECTION 2-1: 7일 이전 wearerData는 삭제하기
+    # SECTION 2-1: 7일 이전 wearerData, wearerMeter는 삭제하기
     WearerData.objects.filter(user=wearer, nowDate__lte=weekAgo).delete()
+    WearerMeter.objects.filter(user=wearer,  nowDT__lte=weekAgo).delete()
 
     # SECTION 2-2: 2일 이전 heartPreEvent는 삭제하기:
     yesterday = today - timedelta(days=1)
@@ -625,9 +732,7 @@ def removeStatsNData(wearer):
 def fillStats(wearer, stats_last, data_last):
     data_queryset = WearerData.objects.order_by(
         'nowDate').filter(user=wearer, nowDate__gt=stats_last, nowDate__lte=data_last)
-    if len(data_queryset) == 0:
-        return False
-    else:
+    if data_queryset.exists():
         saveStatDayValues(wearer, data_queryset)
 
 
@@ -672,7 +777,9 @@ def saveStatDayValues(wearer, data_queryset):
                                            temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
                                            humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
             # 초기화
-            steps = data.stepCount
+            # SECTION step
+            steps = getSteps(wearer, cur_date)
+
             for dic, dat in sc_list:
                 dic['max'] = dic['tot'] = dic['min'] = dat
             cnt = 1
@@ -680,7 +787,8 @@ def saveStatDayValues(wearer, data_queryset):
         else:
             # date가 같을 때:
             # 업데이트
-            steps = data.stepCount
+            steps = getSteps(wearer, cur_date)
+
             for dic, dat in sc_list:
                 # 둘다 if로 한 이유: 가장 처음 날짜의 데이터가 딱 하나일 경우를 고려해서.
                 if dic['max'] < dat:
@@ -692,7 +800,7 @@ def saveStatDayValues(wearer, data_queryset):
         pre_date = cur_date
 
     # 마지막 data 케어
-    steps = data.stepCount
+    steps = getSteps(wearer, cur_date)
     # print(wearer.username, "nowDate=", pre_date, "step=", steps, "\nheartRate=",
     #   he_dict, "sound=", s_dict, "temp=", t_dict, "humid=", hu_dict)
     WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
@@ -701,3 +809,15 @@ def saveStatDayValues(wearer, data_queryset):
                                temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
                                humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
     return True
+
+
+def getSteps(wearer, cur_date):
+    # wearer와 해당 날짜로 wearerMeter에 등록되어 있는 steps 구하기
+
+    step_qs = WearerMeter.objects.filter(
+        user=wearer, nowDT__gte=cur_date, nowDT__lt=cur_date+timedelta(days=1))
+    if step_qs.exists():
+        print(step_qs.last().meter, cur_date)
+        return step_qs.last().meter
+    else:
+        return 0

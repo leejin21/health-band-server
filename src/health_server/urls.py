@@ -21,7 +21,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from users.views import CustomLoginView, LinkedUserPostView, UserFcmTokenPostView
-from wearerData.views import WearerDataPostView, WearerEventPostView, SensorGetView, WearerLocationPostView, WearerLocationGetView
+from wearerData.views import WearerDataPostView, WearerEventPostView, SensorGetView, WearerLocationPostView, WearerLocationGetView, WearerDataGetView, WearerMeterPostView
 
 
 urlpatterns = [
@@ -34,6 +34,8 @@ urlpatterns = [
     path('user/changeFcmToken/', UserFcmTokenPostView.as_view()),
     path('linkedUser/post/', LinkedUserPostView.as_view()),
     path('wearerData/post/', WearerDataPostView.as_view()),
+    path('wearerMeter/post/', WearerMeterPostView.as_view()),
+    path('wearerData/get/', WearerDataGetView.as_view()),
     path('wearerLocation/post/', WearerLocationPostView.as_view()),
     path('wearerLocation/get/', WearerLocationGetView.as_view()),
     path('sensorData/get/', SensorGetView.as_view()),

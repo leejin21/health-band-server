@@ -22,18 +22,18 @@ class WearerData(models.Model):
 
     heartRate = models.CharField(_('heartRate_sensor'), max_length=50)
     sound = models.CharField(_('sound_sensor'), max_length=50)
-    stepCount = models.CharField(_('stepCount'), max_length=50, default='200')
 
 
 class WearerMeter(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
-    nowDate = models.DateField(_('nowDate'), auto_now_add=True)
-    meter = models.CharField(_('meter'), max_length=20)
+    nowDT = models.DateTimeField(_('now date time'), auto_now=True)
+    # nowDT = models.DateTimeField(_('now date time'), default=timezone.now)
+    meter = models.IntegerField(_('meter'))
 
 
 class WearerLocation(models.Model):
-    user = models.ForeignKey(
-        to=CustomUser, on_delete=models.CASCADE, primary_key=True)
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, primary_key=True)
     nowDT = models.DateTimeField(auto_now=True)
     latitude = models.CharField(max_length=50)
     longitude = models.CharField(max_length=50)
@@ -133,6 +133,8 @@ class WearerStats(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(
         _('now date'), auto_now_add=True, null=True)
+    # nowDate = models.DateField(
+    # _('now date'), default=timezone.now, null=True)
 
     heartRate_max = models.FloatField(_('day heart rate max'))
     heartRate_min = models.FloatField(_('day heart rate min'))

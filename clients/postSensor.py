@@ -3,29 +3,54 @@ import json
 
 import tokenEx
 
+other1 = {
+    "temp": "17",
+    "humid": "53",
+    "heartRate": "47",
+    "sound": "13",
 
-def client():
-    headers = {"Authorization": tokenEx.token_h("w2")}
+}
+
+other2 = {
+    "temp": "24",
+    "humid": "69",
+    "heartRate": "89",
+    "sound": "95",
+
+}
+
+meter1 = {
+    "meter": "500"
+}
+
+meter2 = {
+    "meter": "1000"
+}
+meter3 = {
+    "meter": "3000"
+}
+
+
+def post_other(user, data):
+    headers = {"Authorization": tokenEx.token_h(user)}
 
     # wearerData/post
-    data1 = {
-        "temp": "17",
-        "humid": "53",
-        "heartRate": "47",
-        "sound": "13",
-        "stepCount": "2000",
-    }
-
-    data2 = {
-        "temp": "24",
-        "humid": "69",
-        "heartRate": "89",
-        "sound": "95",
-        "stepCount": "3642",
-    }
 
     response = requests.post(
-        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/post/", headers=headers, data=data2)
+        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/post/", headers=headers, data=data)
+
+    print("Status Code:", response.status_code)
+    response_data = response.json()
+    print(response_data)
+
+
+def post_meter(user, data):
+    headers = {"Authorization": tokenEx.token_h(user)}
+
+    # wearerMeter/post/
+
+    response = requests.post(
+        "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerMeter/post/", headers=headers, data=data)
 
     print("Status Code:", response.status_code)
     response_data = response.json()
@@ -33,4 +58,5 @@ def client():
 
 
 if __name__ == "__main__":
-    client()
+    post_other("w3", other1)
+    # post_meter("w3", meter3)

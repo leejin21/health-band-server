@@ -3,7 +3,8 @@ from django.test import TestCase
 # Create your tests here.
 from users.models import CustomUser, LinkedUser
 from datetime import datetime, timedelta
-from wearerData.models import WearerData
+from wearerData.models import WearerData, WearerMeter, WearerEvent, WearerStats, HeatPreEvent, WearerLocation
+
 
 u = CustomUser.objects.get(username="w3@gmail.com")
 qs = WearerData.objects.order_by('nowDate').filter(
@@ -112,3 +113,15 @@ for i in range(len(weekdays)):
     for j in range(2):
         WearerData.objects.create(
             user=w2, nowDate=weekdays[i], temp=temp[i][j], humid=humid[i][j], heartRate=heartRate[i][j], sound=sound[i][j], stepCount=step[i])
+
+
+# SECTION wearer meter add instance
+
+w3 = CustomUser.objects.get(username="w3@gmail.com")
+steps = [1000, 2000, 3000, 4000, 3000, 2000]
+weekdays = [datetime.now().date() - timedelta(days=i)
+            for i in range(12, 6, -1)]
+
+for i in range(len(steps)):
+    WearerMeter.objects.create(user=w3, nowDT=datetime.combine(
+        weekdays[i], datetime.now().time()), meter=steps[i])

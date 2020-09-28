@@ -1,12 +1,9 @@
 
 from rest_framework import serializers, exceptions
-from .models import WearerData, WearerEvent, WearerLocation
+from .models import WearerData, WearerEvent, WearerLocation, WearerMeter
 
 from django.utils.translation import ugettext_lazy as _
 
-
-# TODO serializers 채우기
-# TODO login한 상태에서 self.user로 굳이 serializer에서 명시하지 않아도 되는 지.(이 경우 view에서 그냥 추가해 주면 되는 건 지)
 
 class WearerDataSerializer(serializers.Serializer):
     nowTime = serializers.TimeField(read_only=True)
@@ -16,7 +13,6 @@ class WearerDataSerializer(serializers.Serializer):
 
     heartRate = serializers.CharField(max_length=50)
     sound = serializers.CharField(max_length=50)
-    stepCount = serializers.CharField(max_length=50)
 
     # override
 
@@ -29,12 +25,27 @@ class WearerDataSerializer(serializers.Serializer):
 
 
 class WearerLocationSerializer(serializers.Serializer):
-
+    nowDT = serializers.DateTimeField(read_only=True)
     latitude = serializers.CharField(max_length=50)
     longitude = serializers.CharField(max_length=50)
 
     def create(self, validated_data):
         return WearerLocation.objects.create(**validated_data)
+
+
+class WearerMeterSerializer(serializers.Serializer):
+    nowDT = serializers.DateTimeField(read_only=True)
+    meter = serializers.CharField(max_length=50)
+
+    def validate_meter(self, value):
+        try:
+            val = int(value)
+            return val
+        except:
+            raise(ValueError("meter value should be written in int"))
+
+    def create(self, validated_data):
+        return WearerMeter.objects.create(**validated_data)
 
 
 class WearerEventSerializer(serializers.Serializer):

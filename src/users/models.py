@@ -8,9 +8,6 @@ from django.utils.translation import ugettext_lazy as _
 from .managers import CustomUserManager
 from random import randint
 from django.utils import timezone
-# User model customize
-# 이름, 타입, 전화번호 추가해야 함.
-# username, name, user_type, phone_number
 
 
 class CustomUser(AbstractUser):

@@ -60,11 +60,6 @@ https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1
 아직 회원타입 관련 custom은 못한 상태
 
 ### end points
-```wearerData/post/ (POST)
-
-```
-
-
 
 ```/linkedUser/post (POST)
 - wearer
@@ -123,6 +118,44 @@ Registration
 - email
 ```
 
+#### end point - custom 0928
+
+1. 보호자: 착용자 데이터 GET 요청
+url = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/get/"
+header: token
+params: wearerId
+
+
+{'data': {'heartRate': '47',
+          'humid': '53',
+          'meter': '3000',
+          'nowDate': '2020-09-28',
+          'nowTime': '23:17:01.343686',
+          'sound': '13',
+          'temp': '17'},
+ 'status': 'success'}
+
+
+2. 착용자: 미터수 POST 요청
+url =  "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerMeter/post/"
+header: token
+
+data = {
+    "meter": "500"
+}
+
+
+3. 착용자: 센서 데이터 POST 요청
+
+url = "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/post/"
+header: token
+
+data = {
+    "temp": "17",
+    "humid": "53",
+    "heartRate": "47",
+    "sound": "13"
+}
 ## Custom User model
 
 validate_^field^에서 return value에 value 대신 다른 값을 넣으면 해당 값으로 save된다는 데서 착안하여 
@@ -134,7 +167,7 @@ foreign field를 2개 넣은 model serializer function 만드는 데 성공함.(
 
 
 
-## clients/hana.py 관련 설명
+## clients 관련 설명
 
 ## wearer data 저장 관련 이슈
 - clients/hana.py
