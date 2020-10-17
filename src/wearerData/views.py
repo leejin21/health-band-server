@@ -9,7 +9,7 @@ from rest_framework.settings import api_settings
 from rest_framework import status
 from rest_framework.response import Response
 
-from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent, WearerLocation, WearerMeter
+from .models import WearerData, WearerEvent, WearerStats, HeatPreEvent, WearerLocation, WearerMeter, DetectHeartEvent
 from .serializers import WearerDataSerializer, WearerEventSerializer, WearerLocationSerializer, WearerMeterSerializer
 from users.models import CustomUser
 
@@ -39,7 +39,7 @@ C_TEM = 54
 
 class WearerDataPostView(CreateAPIView):
     # url: /linkedUser/post/
-    # TODO 로그인한 유저가 스스로와 연관된 유저만 추가할 수 있다는 security error 설정 넣기
+    # TODO 심박동 관련 설정하기
 
     permission_classes = [IsAuthenticated]
     authentication_classes = [TokenAuthentication]
@@ -184,6 +184,71 @@ class WearerDataPostView(CreateAPIView):
             current.save()
             print(current.nowDate, current.nowTime,
                   current.a_start, current.b_start, current.c_start)
+            return
+        except:
+            return
+
+    def check_heartEvent(self, sensorData):
+
+        eventType = self.getHeartEventType(float(sensorData['heartRate']))
+        if eventType == "N" or len(DetectHeartEvent.objects.filter(user=self.request.user)) == 0:
+            DetectHeartEvent.objects.create(
+                user=self.request.user, eventType=eventType)
+        else:
+            before = DetectHeartEvent.objects.filter(
+                user=self.request.user).latest('id')
+            if before.eventType == 'N' or datetime.now() - datetime.combine(before.nowDate, before.nowTime) > timedelta(minutes=10):
+                # 직전 preEvent 인스턴스가 N이거나 등록된 시간에서부터 10분 이상 지났으면
+                DetectHeartEvent.objects.create(
+                    user=self.request.user, eventType=eventType)
+
+            elif before.eventType == eventType:
+                if eventType == 'S':
+                    current = DetectHeartEvent.objects.create(
+                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, s_alarmedDT=before.s_alarmedDT, eventType=eventType)
+                    # 이벤트 detect
+                    if datetime.combine(current.nowDate, current.nowTime) - before.s_alarmedDT > timedelta(seconds=PUSH_DELAY_SEC):
+                        # 이전 이벤트가 언제였는 지 확인해서 20분 안에 알람이 울렸으면, 알람 안 울리게 하기.
+                        self.detectHeart(current)
+                elif eventType == 'B':
+                    current = DetectHeartEvent.objects.create(
+                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, b_alarmedDT=before.b_alarmedDT, eventType=eventType)
+                    # 이벤트 detect
+                    if datetime.combine(current.nowDate, current.nowTime) - before.b_alarmedDT > timedelta(seconds=PUSH_DELAY_SEC):
+                        # 이전 이벤트가 언제였는 지 확인해서 20분 안에 알람이 울렸으면, 알람 안 울리게 하기.
+                        self.detectHeart(current)
+
+            else:
+                DetectHeartEvent.objects.create(
+                    user=self.request.user, eventType=eventType)
+
+    def getHeartEventType(self, heart):
+        if heart < 60:
+            return 'S'
+        elif heart > 110:
+            return 'B'
+        else:
+            return 'N'
+
+    def detectHeart(self, current):
+
+        b_start, s_start = current.b_start, current.s_start
+
+        # 모든 경우에
+        if current.eventType == 'B' and datetime.now() - b_start > timedelta(minutes=5):
+            event = WearerEvent(user=self.request.user, heartEvent='B')
+
+        if current.eventType == 'S' and datetime.now() - s_start > timedelta(minutes=5):
+            event = WearerEvent(user=self.request.user, heartEvent='S')
+
+        # 가장 위험한 경우만 event save해서 push alarm
+        try:
+            event.save()
+            current.b_alarmedDT = datetime.now()
+            current.s_alarmedDT = datetime.now()
+            current.save()
+            print(current.nowDate, current.nowTime,
+                  current.b_start, current.s_start)
             return
         except:
             return

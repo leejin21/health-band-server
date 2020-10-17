@@ -48,6 +48,20 @@ class HeatPreEvent(models.Model):
     c_start = models.DateTimeField(default=timezone.now)
     alarmedDT = models.DateTimeField(default=timezone.now)
     eventType = models.CharField(default='N', max_length=1, null=True)
+    # 'A', 'B', 'C'
+
+
+class DetectHeartEvent(models.Model):
+    # 1분 이상 지속할 시 이벤트 발생.
+    user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
+    nowDate = models.DateField(auto_now_add=True)
+    nowTime = models.TimeField(auto_now_add=True)
+    s_start = models.BooleanField(default=timezone.now)
+    b_start = models.DateTimeField(default=timezone.now)
+    s_alarmedDT = models.DateTimeField(default=timezone.now)
+    b_alarmedDT = models.DateTimeField(default=timezone.now)
+    eventType = models.CharField(default='N', max_length=1, null=True)
+    # 'N', 'S', 'B'
 
 
 class WearerEvent(models.Model):
