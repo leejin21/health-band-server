@@ -12,7 +12,6 @@ class WearerDataSerializer(serializers.Serializer):
     humid = serializers.CharField(max_length=50)
 
     heartRate = serializers.CharField(max_length=50)
-    sound = serializers.CharField(max_length=50)
 
     # override
 

@@ -290,7 +290,7 @@ class WearerDataGetView(RetrieveAPIView):
         response = Response(serializer.data)
 
         sensor_names = ["heartRate", "temp",
-                        "humid", "nowDate", "nowTime", "sound"]
+                        "humid", "nowDate", "nowTime"]
         data = dict()
         for name in sensor_names:
             data[name] = serializer.data[name]
@@ -467,7 +467,7 @@ class SensorGetView(ListAPIView):
     INPUT
     as get param, needs
     1. wearerID: wearer_username
-    2. sensorName: which_sensor(choices: 'tempHumid', 'sound', 'heartRate', 'stepCount')
+    2. sensorName: which_sensor(choices: 'tempHumid', 'heartRate', 'stepCount')
 
     OUTPUT
     type=json, if no wearerData posted on that day, -1
@@ -514,9 +514,9 @@ class SensorGetView(ListAPIView):
             queryset = queryset.filter(user=self.request.user)
         serializer = self.get_serializer(queryset, many=True)
 
-        if self.request.query_params.get('sensorName') not in ['tempHumid', 'sound', 'heartRate', 'stepCount']:
+        if self.request.query_params.get('sensorName') not in ['tempHumid', 'heartRate', 'stepCount']:
             raise ValueError(
-                "the params should be one of these: 'tempHumid', 'sound', 'heartRate', 'stepCount'")
+                "the params should be one of these: 'tempHumid', 'heartRate', 'stepCount'")
 
         return Response(self.sensorList(serializer.data, self.request.query_params.get('sensorName')))
 
@@ -528,7 +528,7 @@ class SensorGetView(ListAPIView):
 
         INPUT
         sensorDataList: list of OrderedDict
-        sensorName: str, choices) 'tempHumid', 'sound', 'heartRate', 'stepCount'
+        sensorName: str, choices) 'tempHumid', 'heartRate', 'stepCount'
 
         TIME
         time complexity: O(n*m),
@@ -587,7 +587,7 @@ class SensorGetView(ListAPIView):
 
         INPUT
         date: datetime.date object
-        sensor: string, choice = temp, humid, sound, heartRate
+        sensor: string, choice = temp, humid, heartRate
 
         TIME COMPLEXITY
         Vary by the filtering process in db
@@ -625,7 +625,7 @@ class SensorGetView(ListAPIView):
 
         INPUT
         sensorDataList: list of OrderedDict
-        sensorName can be temp, humid, sound, heartRate
+        sensorName can be temp, humid, heartRate
 
         TIME
         time complexity: O(n), where n = len(sensorDataList)
@@ -820,14 +820,13 @@ def saveStatDayValues(wearer, data_queryset):
 
     steps = 0
     he_dict = {'tot': 0, 'min': 10000, 'max': -10000}
-    s_dict = {'tot': 0, 'min': 10000, 'max': -10000}
     t_dict = {'tot': 0, 'min': 10000, 'max': -10000}
     hu_dict = {'tot': 0, 'min': 10000, 'max': -10000}
     cnt = 0
 
     for data in data_queryset:
         cur_date = data.nowDate
-        sc_list = [(he_dict, float(data.heartRate)), (s_dict, float(data.sound)),
+        sc_list = [(he_dict, float(data.heartRate)),
                    (t_dict, float(data.temp)), (hu_dict, float(data.humid))]
         if cur_date != pre_date:
             # date가 달라지는 순간:
@@ -835,10 +834,9 @@ def saveStatDayValues(wearer, data_queryset):
 
             if len(WearerStats.objects.filter(user=wearer, nowDate=pre_date)) == 0:
                 # print(wearer.username, "nowDate=", pre_date, "step=", steps, "\nheartRate=",
-                #       he_dict, "sound=", s_dict, "temp=", t_dict, "humid=", hu_dict)
+                #       he_dict, s_dict, "temp=", t_dict, "humid=", hu_dict)
                 WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
                                            heartRate_max=he_dict['max'], heartRate_avg=he_dict['tot']/cnt, heartRate_min=he_dict['min'],
-                                           sound_max=s_dict['max'], sound_avg=s_dict['tot']/cnt, sound_min=s_dict['min'],
                                            temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
                                            humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
             # 초기화
@@ -867,10 +865,9 @@ def saveStatDayValues(wearer, data_queryset):
     # 마지막 data 케어
     steps = getSteps(wearer, cur_date)
     # print(wearer.username, "nowDate=", pre_date, "step=", steps, "\nheartRate=",
-    #   he_dict, "sound=", s_dict, "temp=", t_dict, "humid=", hu_dict)
+    #   he_dict, s_dict, "temp=", t_dict, "humid=", hu_dict)
     WearerStats.objects.create(user=wearer, nowDate=pre_date, stepCount=steps,
                                heartRate_max=he_dict['max'], heartRate_avg=he_dict['tot']/cnt, heartRate_min=he_dict['min'],
-                               sound_max=s_dict['max'], sound_avg=s_dict['tot']/cnt, sound_min=s_dict['min'],
                                temp_max=t_dict['max'], temp_avg=t_dict['tot']/cnt, temp_min=t_dict['min'],
                                humid_max=hu_dict['max'], humid_avg=hu_dict['tot']/cnt, humid_min=hu_dict['min'])
     return True

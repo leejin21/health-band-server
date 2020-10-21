@@ -19,5 +19,5 @@ def clientGetSensor(sensorUrl, name):
 
 if __name__ == "__main__":
     sensorUrl = getSensorUrl
-    name = "stepCount"
+    name = "tempHumid"
     clientGetSensor(sensorUrl, name)

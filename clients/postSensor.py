@@ -7,16 +7,12 @@ other1 = {
     "temp": "17",
     "humid": "53",
     "heartRate": "47",
-    "sound": "13",
-
 }
 
 other2 = {
     "temp": "24",
     "humid": "69",
     "heartRate": "89",
-    "sound": "95",
-
 }
 
 meter1 = {
@@ -58,5 +54,5 @@ def post_meter(user, data):
 
 
 if __name__ == "__main__":
-    post_other("w3", other1)
-    # post_meter("w3", meter3)
+    # post_other("w3", other1)
+    post_meter("w3", meter3)

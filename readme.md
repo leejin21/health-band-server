@@ -131,7 +131,7 @@ params: wearerId
           'meter': '3000',
           'nowDate': '2020-09-28',
           'nowTime': '23:17:01.343686',
-          'sound': '13',
+          
           'temp': '17'},
  'status': 'success'}
 
@@ -154,7 +154,7 @@ data = {
     "temp": "17",
     "humid": "53",
     "heartRate": "47",
-    "sound": "13"
+    
 }
 ## Custom User model
 

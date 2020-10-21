@@ -21,7 +21,7 @@ class WearerData(models.Model):
     humid = models.CharField(_('humid_sensor'), max_length=50, default='50')
 
     heartRate = models.CharField(_('heartRate_sensor'), max_length=50)
-    sound = models.CharField(_('sound_sensor'), max_length=50)
+    # sound = models.CharField(_('sound_sensor'), max_length=50)
 
 
 class WearerMeter(models.Model):
@@ -154,9 +154,9 @@ class WearerStats(models.Model):
     heartRate_min = models.FloatField(_('day heart rate min'))
     heartRate_avg = models.FloatField(_('day heart rate avg'))
 
-    sound_max = models.FloatField(_('day sound max'))
-    sound_avg = models.FloatField(_('day sound avg'))
-    sound_min = models.FloatField(_('day sound min'))
+    # sound_max = models.FloatField(_('day sound max'))
+    # sound_avg = models.FloatField(_('day sound avg'))
+    # sound_min = models.FloatField(_('day sound min'))
 
     temp_max = models.FloatField(_('temp rate max'))
     temp_avg = models.FloatField(_('temp rate avg'))
@@ -173,7 +173,6 @@ class WearerStats(models.Model):
 온도: temp
 습도: humid
 심박: heartRate
-사운드센서: sound
 stepCount: vibrate
 '''
 

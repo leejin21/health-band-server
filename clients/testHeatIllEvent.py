@@ -37,7 +37,6 @@ def client(SEQUENCE):
         data = dict()
         data['temp'], data['humid'], name = SEQUENCE[i]
         data['heartRate'] = "47"
-        data['sound'] = "13"
         data['stepCount'] = "2000"
 
         response = requests.post(
