@@ -56,7 +56,7 @@ class DetectHeartEvent(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(auto_now_add=True)
     nowTime = models.TimeField(auto_now_add=True)
-    s_start = models.BooleanField(default=timezone.now)
+    s_start = models.DateTimeField(default=timezone.now)
     b_start = models.DateTimeField(default=timezone.now)
     s_alarmedDT = models.DateTimeField(default=timezone.now)
     b_alarmedDT = models.DateTimeField(default=timezone.now)

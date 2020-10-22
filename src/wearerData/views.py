@@ -71,6 +71,7 @@ class WearerDataPostView(CreateAPIView):
             "data": serializer.data,
             "status": "success"
         }
+        print("update_data: ", update_data)
         response.data.clear()
         response.data.update(update_data)
         removeStatsNData(self.request.user)
@@ -94,6 +95,7 @@ class WearerDataPostView(CreateAPIView):
         EXPLANATION
         메모이제이션: pre_event에다가 미리 저장해두고 a_start, b_start, c_start 등으로 무슨 이벤트가 얼마나 지속되었는 지 확인해서 이벤트 발생 확인하면 이벤트 데이터 save
         '''
+
         # 열지수 계산
         heatIndex = self.calHeatIndex(
             float(sensorData['temp']), float(sensorData['humid']))
@@ -197,8 +199,9 @@ class WearerDataPostView(CreateAPIView):
             return
 
     def check_heartEvent(self, sensorData):
-
+        print("check heart event")
         eventType = self.getHeartEventType(float(sensorData['heartRate']))
+        print(eventType, "eventType")
         if eventType == "N" or len(DetectHeartEvent.objects.filter(user=self.request.user)) == 0:
             DetectHeartEvent.objects.create(
                 user=self.request.user, eventType=eventType)

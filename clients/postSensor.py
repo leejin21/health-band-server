@@ -35,17 +35,21 @@ def post_other(user, data):
     # wearerData/post
     if type(data) == list:
         for d in data:
-            time.sleep(1)
+            print(d)
             response = requests.post(
                 "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/post/", headers=headers, data=d)
+            print("Status Code:", response.status_code)
+            response_data = response.json()
+            print(response_data)
+            time.sleep(1)
 
     else:
         response = requests.post(
             "http://ec2-3-34-84-225.ap-northeast-2.compute.amazonaws.com:8000/wearerData/post/", headers=headers, data=data)
 
-    print("Status Code:", response.status_code)
-    response_data = response.json()
-    print(response_data)
+        print("Status Code:", response.status_code)
+        response_data = response.json()
+        print(response_data)
 
 
 def post_meter(user, data):
