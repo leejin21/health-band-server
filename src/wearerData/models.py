@@ -74,7 +74,7 @@ class WearerEvent(models.Model):
     # 낙상이벤트
     fallEvent = models.BooleanField(default=False, null=True)
     # 부정맥이벤트: 장고로 그냥 구현해버리기.
-    heartEvent = models.BooleanField(default=False, null=True)
+    heartEvent = models.CharField(default='N', max_length=1, null=True)
     # 더위 먹는 이벤트 관련도 구현해 주기.
     heatIllEvent = models.CharField(default='N', max_length=1, null=True)
 
@@ -90,7 +90,7 @@ class WearerEvent(models.Model):
                 body = self.user.name + "님의 디바이스에서 낙상을 감지했습니다."
                 print(ids, title, body)
                 self.send_fcm_notification(ids, title, body)
-            elif self.heartEvent == True:
+            elif self.heartEvent != "N":
                 title = "부정맥 발생"
                 body = self.user.name + "님의 디바이스에서 부정맥을 감지했습니다."
                 print(ids, title, body)
@@ -134,12 +134,12 @@ class WearerEvent(models.Model):
             # json 파싱 후 requests 모듈로 FCM 서버에 요청
 
             # *찐*
-            response = requests.post(
-                url, data=json.dumps(content), headers=headers)
-            print("Status Code:", response.status_code)
+            # response = requests.post(
+            #     url, data=json.dumps(content), headers=headers)
+            # print("Status Code:", response.status_code)
 
             # *가*
-            # print(content)
+            print(content)
 
 
 class WearerStats(models.Model):

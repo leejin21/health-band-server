@@ -20,16 +20,19 @@ from django.utils import timezone
 A_SEC = 2 * 60 * 60
 B_SEC = 1 * 60 * 60
 C_SEC = 30 * 60
-PUSH_DELAY_SEC = 20 * 60
+# PUSH_DELAY_SEC = 20 * 60
 A_TEM = 32
 B_TEM = 41
 C_TEM = 54
+# HEART_SEC = 60
+
 
 # *가짜* 전역변수: 차례로 60s, 30s, 10s
 # A_SEC = 30
 # B_SEC = 20
 # C_SEC = 10
-# PUSH_DELAY_SEC = 5
+HEART_SEC = 10
+PUSH_DELAY_SEC = 5
 # A_TEM = 30
 # B_TEM = 25
 # C_TEM = 20
@@ -72,7 +75,12 @@ class WearerDataPostView(CreateAPIView):
         response.data.update(update_data)
         removeStatsNData(self.request.user)
         self.check_heatIllevent(serializer.data)
+        self.check_heartEvent(serializer.data)
+        print("===========================================")
+        print("SENSOR DATA POST")
+        print("-------------------------------------------")
         print(serializer.data)
+        print("===========================================")
         return response
 
     def perform_create(self, serializer):
@@ -198,7 +206,7 @@ class WearerDataPostView(CreateAPIView):
             before = DetectHeartEvent.objects.filter(
                 user=self.request.user).latest('id')
             if before.eventType == 'N' or datetime.now() - datetime.combine(before.nowDate, before.nowTime) > timedelta(minutes=10):
-                # 직전 preEvent 인스턴스가 N이거나 등록된 시간에서부터 10분 이상 지났으면
+                # 직전 preEvent 인스턴스가 N이거나 등록된 시간에서부터 1분 이상 지났으면
                 DetectHeartEvent.objects.create(
                     user=self.request.user, eventType=eventType)
 
@@ -235,10 +243,12 @@ class WearerDataPostView(CreateAPIView):
         b_start, s_start = current.b_start, current.s_start
 
         # 모든 경우에
-        if current.eventType == 'B' and datetime.now() - b_start > timedelta(minutes=5):
+        if current.eventType == 'B' and datetime.now() - b_start > timedelta(seconds=HEART_SEC):
+            print("이벤트 발생: B 심장")
             event = WearerEvent(user=self.request.user, heartEvent='B')
 
-        if current.eventType == 'S' and datetime.now() - s_start > timedelta(minutes=5):
+        if current.eventType == 'S' and datetime.now() - s_start > timedelta(seconds=HEART_SEC):
+            print("이벤트 발생: S 심장")
             event = WearerEvent(user=self.request.user, heartEvent='S')
 
         # 가장 위험한 경우만 event save해서 push alarm
