@@ -1,17 +1,19 @@
 import requests
 import json
+import sys
 
 import tokenEx
 
 
-def client():
-    headers = {"Authorization": tokenEx.token_h("w2")}
+def client(uname):
+    headers = {"Authorization": tokenEx.token_h(uname)}
 
     # wearerData/post
 
     data2 = {
         "fallEvent": "T",
-        "heartEvent": "F",
+        # T, F 중 하나
+        "heartEvent": "N",
         "heatIllEvent": "N",
     }
 
@@ -24,4 +26,4 @@ def client():
 
 
 if __name__ == "__main__":
-    client()
+    client(sys.argv[1])

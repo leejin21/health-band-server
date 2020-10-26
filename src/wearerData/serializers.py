@@ -38,10 +38,12 @@ class WearerMeterSerializer(serializers.Serializer):
 
     def validate_meter(self, value):
         try:
-            val = int(value)
-            return val
+            if type(value) == str:
+                return value
+            else:
+                return str(value)
         except:
-            raise(ValueError("meter value should be written in int"))
+            raise(ValueError("meter value should be written in str"))
 
     def create(self, validated_data):
         return WearerMeter.objects.create(**validated_data)
@@ -59,23 +61,23 @@ class WearerEventSerializer(serializers.Serializer):
             return True
         elif value.upper() == "F":
             return False
-
         else:
             raise serializers.ValidationError(
                 _('fallEvent value should be T,t or F,f'))
 
     def validate_heartEvent(self, value):
-        if value.upper() == "T":
-            return True
-        elif value.upper() == "F":
-            return False
-
+        if value.upper() in ["B", "S", "N"]:
+            return value.upper()
         else:
             raise serializers.ValidationError(
-                _('heartRate value should be T,t or F,f'))
+                _('heartEvent value should be B or S'))
 
     def validate_heatIllEvent(self, value):
-        return "N"
+        if value.upper() in ["A", "B", "C", "N"]:
+            return value.upper()
+        else:
+            raise serializers.ValidationError(
+                _('heatIllEvent value should be A, B, or C'))
 
     def create(self, validated_data):
         return WearerEvent.objects.create(**validated_data)

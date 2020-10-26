@@ -1,32 +1,11 @@
 import requests
 import json
 import time
+import sys
+import random
 
 import tokenEx
-import heartTest
-
-other1 = {
-    "temp": "17",
-    "humid": "53",
-    "heartRate": "47",
-}
-
-other2 = {
-    "temp": "24",
-    "humid": "69",
-    "heartRate": "89",
-}
-
-meter1 = {
-    "meter": "500"
-}
-
-meter2 = {
-    "meter": "1000"
-}
-meter3 = {
-    "meter": "3000"
-}
+import ex_dicts
 
 
 def post_other(user, data):
@@ -66,9 +45,12 @@ def post_meter(user, data):
 
 
 if __name__ == "__main__":
-    # post_other("w3", other1)
+    # 정상
+    # post_other(sys.argv[1], ex_dicts.normal_example(10))
+    # post_meter(sys.argv[1], {'meter': str(90)})
 
-    # 서맥성 부정맥 test
-    post_other("w3", heartTest.example_s())
+    # 14. 빈맥성 부정맥 test
+    post_other(sys.argv[1], ex_dicts.heart_example("b", 20))
 
-    # post_meter("w3", meter3)
+    # 15. 열사병 위험 test
+    # post_other(sys.argv[1], ex_dicts.sum_event("C", 15))

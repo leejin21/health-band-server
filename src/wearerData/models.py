@@ -15,13 +15,16 @@ class WearerData(models.Model):
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(
         _('nowTime'), auto_now_add=True, null=True)
+    # nowDate = models.DateField(
+    # _('nowDate'), default=timezone.now().date(), null=True)
     nowTime = models.TimeField(
         _('nowTime'), auto_now_add=True, null=True)
+    # nowTime = models.TimeField(
+    # _('nowTime'), default=timezone.now().time(), null=True)
     temp = models.CharField(_('temp_sensor'), max_length=50, default="20")
     humid = models.CharField(_('humid_sensor'), max_length=50, default='50')
 
     heartRate = models.CharField(_('heartRate_sensor'), max_length=50)
-    # sound = models.CharField(_('sound_sensor'), max_length=50)
 
 
 class WearerMeter(models.Model):
@@ -84,16 +87,16 @@ class WearerEvent(models.Model):
             ids = [self.user.wearee.all()[i].protector.fcm_token for i in range(
                 len(self.user.wearee.all()))] + [self.user.fcm_token]
             # ids = [self.user.fcm_token]
-            # print(ids)
+            print("연결된 사람들:", ids)
             if self.fallEvent == True:
                 title = "낙상 사고 발생"
                 body = self.user.name + "님의 디바이스에서 낙상을 감지했습니다."
-                print(ids, title, body)
+
                 self.send_fcm_notification(ids, title, body)
             elif self.heartEvent != "N":
                 title = "부정맥 발생"
                 body = self.user.name + "님의 디바이스에서 부정맥을 감지했습니다."
-                print(ids, title, body)
+
                 self.send_fcm_notification(ids, title, body)
             elif self.heatIllEvent != "N":
                 # TODO 여기서 heatIllEvent 유형에 따라 알림 다르게 하는 코드 적어주기
@@ -105,7 +108,7 @@ class WearerEvent(models.Model):
                     title = "열사병, 일사병 매우 위험"
 
                 body = self.user.name + "님의 디바이스에서 "+title+"을 감지했습니다."
-                print(ids, title, body)
+
                 self.send_fcm_notification(ids, title, body)
 
         super(WearerEvent, self).save(*args, **kwargs)
@@ -123,40 +126,34 @@ class WearerEvent(models.Model):
         # 보낼 내용과 대상을 지정
         # ids 존재 안하면 에러 발생하게 하기.
         for id in ids:
-            content = {
-                'to': id,
-                'data': {
-                    'title': title,
-                    'message': body
+            if len(id) > 5:
+                content = {
+                    'to': id,
+                    'data': {
+                        'title': title,
+                        'message': body
+                    }
                 }
-            }
 
-            # json 파싱 후 requests 모듈로 FCM 서버에 요청
+                # json 파싱 후 requests 모듈로 FCM 서버에 요청
 
-            # *찐*
-            # response = requests.post(
-            #     url, data=json.dumps(content), headers=headers)
-            # print("Status Code:", response.status_code)
-
-            # *가*
-            print(content)
+                # *찐*
+                print("++++++++++FCM 푸시 알림++++++++++")
+                print(content)
+                response = requests.post(
+                    url, data=json.dumps(content), headers=headers)
+                print("Status Code:", response.status_code)
 
 
 class WearerStats(models.Model):
     # 착용자 데이터 중 당일로부터 7일 전까지의 데이터는 wearerData에서 삭제, 당일 제외한 모든 데이터는 wearerStats에 통계값과 날짜만 저장.
     user = models.ForeignKey(to=CustomUser, on_delete=models.CASCADE)
     nowDate = models.DateField(
-        _('now date'), auto_now_add=True, null=True)
-    # nowDate = models.DateField(
-    # _('now date'), default=timezone.now, null=True)
+        _('now date'), default=timezone.now, null=True)
 
     heartRate_max = models.FloatField(_('day heart rate max'))
     heartRate_min = models.FloatField(_('day heart rate min'))
     heartRate_avg = models.FloatField(_('day heart rate avg'))
-
-    # sound_max = models.FloatField(_('day sound max'))
-    # sound_avg = models.FloatField(_('day sound avg'))
-    # sound_min = models.FloatField(_('day sound min'))
 
     temp_max = models.FloatField(_('temp rate max'))
     temp_avg = models.FloatField(_('temp rate avg'))

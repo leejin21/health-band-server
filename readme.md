@@ -52,12 +52,15 @@ show tables;
 -- Empty set (0.01 sec)
 ```
 
-## 회원가입, 로그인 기능
+## 예제 user 관련 설명
 
-https://velog.io/@tera_geniel/django-%ED%9A%8C%EC%9B%90%EA%B0%80%EC%9E%85-%EB%A1%9C%EA%B7%B8%EC%9D%B8-%EA%B4%80%EB%A0%A8
-에 대부분의 에러 사항과 어떻게 고친 건 지를 적어둠.
+w1(착용일) ~ p1, p2, p3
+w2(착용이) ~ p1, p2
+"w3(착용삼) ~ p1, p3" => 영상에서 이걸로?
 
-아직 회원타입 관련 custom은 못한 상태
+p1(보호일) ~ w1, w2, w3
+p2(보호이) ~ w1, w2
+p3(보호삼) ~ w1, w3
 
 ### end points
 
@@ -156,18 +159,7 @@ data = {
     "heartRate": "47",
     
 }
-## Custom User model
 
-validate_^field^에서 return value에 value 대신 다른 값을 넣으면 해당 값으로 save된다는 데서 착안하여 
-foreign field를 2개 넣은 model serializer function 만드는 데 성공함.(src/users/serializers.py 참고, validate_함수 이용)
-
-
-
-## authentication_classes 관련 이슈
-
-
-
-## clients 관련 설명
 
 ## wearer data 저장 관련 이슈
 - clients/hana.py

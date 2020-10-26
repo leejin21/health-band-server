@@ -28,11 +28,11 @@ C_TEM = 54
 
 
 # *가짜* 전역변수: 차례로 60s, 30s, 10s
-# A_SEC = 30
-# B_SEC = 20
-# C_SEC = 10
+# A_SEC = 20
+# B_SEC = 10
+# C_SEC = 5
 HEART_SEC = 10
-PUSH_DELAY_SEC = 5
+PUSH_DELAY_SEC = 10
 # A_TEM = 30
 # B_TEM = 25
 # C_TEM = 20
@@ -71,7 +71,6 @@ class WearerDataPostView(CreateAPIView):
             "data": serializer.data,
             "status": "success"
         }
-        print("update_data: ", update_data)
         response.data.clear()
         response.data.update(update_data)
         removeStatsNData(self.request.user)
@@ -102,7 +101,6 @@ class WearerDataPostView(CreateAPIView):
 
         # 열지수 유형 분류
         eventType = self.getHeatPhase(heatIndex)
-        print(eventType)
 
         # preEvent 저장
         if eventType == "N" or len(HeatPreEvent.objects.filter(user=self.request.user)) == 0:
@@ -192,38 +190,38 @@ class WearerDataPostView(CreateAPIView):
             event.save()
             current.alarmedDT = datetime.now()
             current.save()
-            print(current.nowDate, current.nowTime,
-                  current.a_start, current.b_start, current.c_start)
+
             return
         except:
             return
 
     def check_heartEvent(self, sensorData):
-        print("check heart event")
+
         eventType = self.getHeartEventType(float(sensorData['heartRate']))
-        print(eventType, "eventType")
+
         if eventType == "N" or len(DetectHeartEvent.objects.filter(user=self.request.user)) == 0:
+            ago30 = datetime.now()-timedelta(minutes=30)
             DetectHeartEvent.objects.create(
-                user=self.request.user, eventType=eventType)
+                user=self.request.user, eventType=eventType, s_alarmedDT=ago30, b_alarmedDT=ago30)
         else:
             before = DetectHeartEvent.objects.filter(
                 user=self.request.user).latest('id')
             if before.eventType == 'N' or datetime.now() - datetime.combine(before.nowDate, before.nowTime) > timedelta(minutes=10):
                 # 직전 preEvent 인스턴스가 N이거나 등록된 시간에서부터 1분 이상 지났으면
                 DetectHeartEvent.objects.create(
-                    user=self.request.user, eventType=eventType)
+                    user=self.request.user, eventType=eventType, s_alarmedDT=before.s_alarmedDT, b_alarmedDT=before.b_alarmedDT)
 
             elif before.eventType == eventType:
                 if eventType == 'S':
                     current = DetectHeartEvent.objects.create(
-                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, s_alarmedDT=before.s_alarmedDT, eventType=eventType)
+                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, s_alarmedDT=before.s_alarmedDT, b_alarmedDT=before.b_alarmedDT, eventType=eventType)
                     # 이벤트 detect
                     if datetime.combine(current.nowDate, current.nowTime) - before.s_alarmedDT > timedelta(seconds=PUSH_DELAY_SEC):
                         # 이전 이벤트가 언제였는 지 확인해서 20분 안에 알람이 울렸으면, 알람 안 울리게 하기.
                         self.detectHeart(current)
                 elif eventType == 'B':
                     current = DetectHeartEvent.objects.create(
-                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, b_alarmedDT=before.b_alarmedDT, eventType=eventType)
+                        user=self.request.user, b_start=before.b_start, s_start=before.s_start, s_alarmedDT=before.s_alarmedDT, b_alarmedDT=before.b_alarmedDT, eventType=eventType)
                     # 이벤트 detect
                     if datetime.combine(current.nowDate, current.nowTime) - before.b_alarmedDT > timedelta(seconds=PUSH_DELAY_SEC):
                         # 이전 이벤트가 언제였는 지 확인해서 20분 안에 알람이 울렸으면, 알람 안 울리게 하기.
@@ -260,8 +258,7 @@ class WearerDataPostView(CreateAPIView):
             current.b_alarmedDT = datetime.now()
             current.s_alarmedDT = datetime.now()
             current.save()
-            print(current.nowDate, current.nowTime,
-                  current.b_start, current.s_start)
+
             return
         except:
             return
@@ -770,9 +767,11 @@ def removeStatsNData(wearer):
     if wearer.dataRemovedDate == today or len(WearerData.objects.filter(user=wearer, nowDate__lt=today)) == 0:
         # 1. 이미 오늘 removeStatsNData()를 call했거나(실행시간 줄이기 위해 session 사용)
         # 2. 막 회원가입해서 예전 데이터가 없을 경우
+
         return
     else:
         # 업데이트하고 다음 코드들 실행
+
         wearer.dataRemovedDate = today
         wearer.save()
 
@@ -808,6 +807,7 @@ def removeStatsNData(wearer):
 
 
 def fillStats(wearer, stats_last, data_last):
+
     data_queryset = WearerData.objects.order_by(
         'nowDate').filter(user=wearer, nowDate__gt=stats_last, nowDate__lte=data_last)
     if data_queryset.exists():

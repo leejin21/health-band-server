@@ -5,13 +5,13 @@ import tokenEx
 
 
 def client_post():
-    headers = {"Authorization": tokenEx.token_h("w2")}
+    headers = {"Authorization": tokenEx.token_h("w1")}
 
     # wearerData/post
 
     data2 = {
-        "latitude": "latitude0001",
-        "longitude": "longitude0001",
+        "latitude": "37.50423",
+        "longitude": "127.0007899"
     }
 
     response = requests.post(

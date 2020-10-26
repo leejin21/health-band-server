@@ -7,7 +7,7 @@ import tokenEx
 def clientGetSensor(sensorUrl):
     headers = {"Authorization": tokenEx.token_h("p1")}
 
-    params = {"wearerID": tokenEx.wearerId("w3")}
+    params = {"wearerID": tokenEx.wearerId("w1")}
     response = requests.get(
         sensorUrl, headers=headers, params=params)
     print("Status Code:", response.status_code)
