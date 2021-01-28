@@ -1,5 +1,12 @@
 # health-band: server
 
+## explanation
+
+2020 한이음 프로젝트 '헬스 솔로잉 밴드'의 서버를 구현한 레포지터리입니다.
+자세한 설명 및 구동 모습은 아래 유투브 링크를 참고해 주세요.
+https://www.youtube.com/watch?v=oZmZxbMW9MI
+
+
 처음 시작할 때 ~/main 에서 `workon djangoEnv`로 가상환경 접속하기
 
 서버 시작할 때, 이 글
