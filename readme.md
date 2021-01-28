@@ -6,6 +6,7 @@
 자세한 설명 및 구동 모습은 아래 유투브 링크를 참고해 주세요.
 https://www.youtube.com/watch?v=oZmZxbMW9MI
 
+## environment
 
 처음 시작할 때 ~/main 에서 `workon djangoEnv`로 가상환경 접속하기
 
@@ -16,9 +17,6 @@ https://www.youtube.com/watch?v=oZmZxbMW9MI
 (djangoEnv) ~/main$ python manage.py runserver
 
 ```
-
-
-## environment
 
 | python | django | djangorestframework | pygments | mysql | mysqlclient | mysql-client-core | django-rest-auth | django-allauth | 
 | :----: | :----: | :------------------:| :------: | :---: | :---------: | :---------------: | :--------------: | :----: |
@@ -166,9 +164,3 @@ data = {
     "heartRate": "47",
     
 }
-
-
-## wearer data 저장 관련 이슈
-- clients/hana.py
-login용, wearerData 저장용, linkedUser 저장용 등을 만들어야 함(아직 예쁘게 정리되지 않은 상태)
-- Wearer Data의 time에 timezone 관련하여 KR 시간으로 저장이 안된다. KR 시간으로 저장되도록 해야 함.
